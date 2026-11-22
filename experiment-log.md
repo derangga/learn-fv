@@ -64,7 +64,7 @@ Phase 0 rows are not use cases. Times for authoring are the agents' estimates as
 | Phase 0: Bend soundness probes | Bend 2.0.40 (plain gate) | 14 of 14 false laws rejected (12 on the merits, 2 detector regressions); `run.sh` exits 0 | about 45 minutes plus about 10 minutes for the EXPECT rework | about 25 `bend` runs; failed iterations not recorded | not recorded / `run.sh` (14 probes) mean 5.550 s ± 0.290 s (about 0.40 s per probe is derived: 5.550 s / 14, includes `run.sh` overhead) | 306 (`*.bend`), `run.sh` 22, `EXPECT` files 26 | one error reported at a time; no tactics; `type_in_type` stopped at Russell version |
 | UC1 | TLA+ | not started | | | | | |
 | UC1 | Bend | not started | | | | | |
-| UC1 | harness | not started | | | | | |
+| UC1 | harness | Go core and Bend port agree on 500 seeded sequences (75,787 events); M1 diverges at event 224 | about 30 min plus review fixes | not recorded | compile 8.2 s / 500-sequence run 10.1 s incl. compile | 739 | Bend I/O: fixed read size, no match on computed values; slow compile |
 | UC2 | TLA+ | not started | | | | | |
 | UC2 | Bend | not started | | | | | |
 | UC2 | harness | not started | | | | | |
@@ -204,6 +204,19 @@ Use --verdict for mathematical validity.
 - Size: `core.go` 348 lines, `core_test.go` 480 lines.
 - Ambiguities resolved by the literal reading: listed in the results file (failed guard gives frame F; `Refund` carries the provider `amt`; non-charge `Wire*` effects carry `A = 0`; A8 replays whatever `d` is).
 - Details: [docs/results/uc1-core.md](docs/results/uc1-core.md)
+
+### 4.8 UC1 conformance harness (Go core vs compiled Bend port)
+
+- Date and time: 2026-11-22, from 10:22 UTC (end in the results file).
+- Tool: Go test plus the compiled Bend 2.0.40 runner `bend/uc1/main.bend`.
+- Use case: UC1.
+- What was done: `harness/conformance` builds `main.bend` once, feeds the same seeded event sequences to the Bend binary (stdin, 5 numbers per event) and to the Go core, and compares the final state plus per-effect-kind counts and sums of ids and amounts. A linear scan reports the first divergent event. `TestHarnessCatchesM1` checks that mutant M1 diverges; `TestBendRejectsMalformedInput` checks 14 bad inputs exit nonzero.
+- Result: 500 sequences, 75,787 events, Go and Bend agree (`ok  github.com/derangga/learn-formal-verification/harness/conformance`). M1 is caught at seed 4, first divergent event 224 (`ChargeReqRecv o0 a3 Approve`). Coverage counts: out-of-range o 28,456; a = 0 1,611; crashes 3,230 / 3,137; delivered while receiver down 29,591; provider replay 858. Only 2.4% of events produce an effect, so most random events are no-ops.
+- Machine time (hyperfine, 3 runs, noisy machine): compile of `main.bend` 8.225 s +/- 1.179 s; 500-sequence test including one compile 10.115 s +/- 0.429 s; one 300-event Bend run 7.8 ms.
+- Size: `main.bend` 328 lines, `conformance.go` 325, `conformance_test.go` 86.
+- Friction: Bend cannot match on a computed value and has no mutual recursion; `Fail` and `Done` are taken by Base; `File.read` takes a fixed size, so input of 16 MiB or more is rejected; compiling takes 6 to 8 s, well above the Phase 0 estimate of 1.5 s.
+- Caveat: the harness was run against `code.bend` as of commit dc3d570. If the proof task edits `code.bend`, the harness must be re-run.
+- Details: [docs/results/uc1-harness.md](docs/results/uc1-harness.md)
 
 ## 5. Findings so far
 
