@@ -62,7 +62,7 @@ Phase 0 rows are not use cases. Times for authoring are the agents' estimates as
 | Phase 0: Bend smoke law + proof | Bend 2.0.40 (plain gate) | `ALL PROOFS CHECK`, 3 laws, no escape hatch; mutants (a) Inc=0 and (b) cap 2 survive | about 10 minutes | AI iterations not recorded; 5 failed proof iterations | not recorded / hyperfine (10 runs, 2 warmups, noisy machine) mean 510.2 ms +/- 217.6 ms and 781.4 ms +/- 87.7 ms, minimum 357.7 ms | `code.bend` 21, `LAWS.bend` 21, `PROOF.bend` 26 | `Event` name clash; termination argument order; affine use; match order |
 | Phase 0: Bend I/O spike | Bend 2.0.40 | recommend option A (compiled binary reads events on stdin); option B (events embedded in generated source) works only in chunks; option C (`-o x.mjs` called from JS) works but unpinned | about 25 minutes programs plus about 25 minutes probes and write-up | about 12 edit/run cycles; failed iterations not recorded | not recorded / not a warm figure: mostly `hyperfine --runs 3 -N`, no warm-up (rough): compile 1.5 s; compiled run 5 to 7 ms at 10,000 events; interpreted run about 0.5 s | `print.bend` 6, `args.bend` 26, `stdin.bend` 37, `record.bend` 40 | no stdin effect; list literal breaks between 2,500 and 3,000 elements; interpreted stdin overflow above roughly 20 KB |
 | Phase 0: Bend soundness probes | Bend 2.0.40 (plain gate) | 14 of 14 false laws rejected (12 on the merits, 2 detector regressions); `run.sh` exits 0 | about 45 minutes plus about 10 minutes for the EXPECT rework | about 25 `bend` runs; failed iterations not recorded | not recorded / `run.sh` (14 probes) mean 5.550 s ± 0.290 s (about 0.40 s per probe is derived: 5.550 s / 14, includes `run.sh` overhead) | 306 (`*.bend`), `run.sh` 22, `EXPECT` files 26 | one error reported at a time; no tactics; `type_in_type` stopped at Russell version |
-| UC1 | TLA+ | not started | | | | | |
+| UC1 | TLA+ (TLC 2.18) | **wall**: N=2 (approved bounds) unfinished after 62 min, 9,079,945 distinct, 4.6M on queue, no violation seen; N=1 scratch run passes (1,156,996 distinct, 19 min 35 s); 15 reach witnesses and M1 violate | about 1 h 20 min (mostly TLC) | 0 failed | not timed (no finished run) | `UC1.tla` 438+, `UC1.cfg` 26 | state-space explosion at N=2 on 2 cores / 1.9 GB |
 | UC1 | Bend 2.0.40 (plain gate) | `ALL PROOFS CHECK`, 46 of 46 laws (Inv, P1, P2a, P2b a-d, P3, pins A1-A13 incl. rule D); `LAWS.bend` not yet user-approved | about 35 minutes | 12 failed proof iterations | first run 6.97 s / 6.484 s +/- 0.099 s | 3660 (`PROOF.bend` 2634) | affine and erasure rules; no match on computed values |
 | UC1 | harness | Go core and Bend port agree on 500 seeded sequences (75,787 events); M1 diverges at event 224 | about 30 min plus review fixes | not recorded | compile 8.2 s / 500-sequence run 10.1 s incl. compile | 739 | Bend I/O: fixed read size, no match on computed values; slow compile |
 | UC2 | TLA+ | not started | | | | | |
@@ -243,6 +243,24 @@ $ bash bend/probes/run.sh >/dev/null; echo $?
 - H3 note: P2b(a), (b), (d), P3, A12 and A13 hold for every state, reachable or not; only `inv_*`, P1, P2a and P2b(c) need `inv`. More in the results file, section 11.
 - Friction: erased versus live variables, affine use (`+` on hypotheses that are functions or pairs is rejected), no match on computed values, `case _ _` does not refine, one error reported per run.
 - Details: [docs/results/uc1-bend.md](docs/results/uc1-bend.md)
+
+### 4.10 UC1 TLA+ spec (TLC)
+
+- Date and time: 2026-11-22, 10:07 to about 11:30 UTC.
+- Tool: TLA+ (TLC 2.18, OpenJDK 21), `-Xmx700m`, 2 workers (heap and workers are not bounds).
+- Use case: UC1.
+- What was done: `spec/tla/UC1.tla` with the nine contract variables, `Step` for A1-A11 with rules F and D, a bag network with Drop, Duplicate (`DupMax` per message value), reorder, Crash and Restart. Invariants `TypeOK`, `Inv`, `NoDoubleCharge`, `RefundNeverExceedsCharge`; action properties `RefundedOnlyFromPaid`, `TerminalStable` and the 13 pins. 15 reachability witness cfgs and `UC1_buggy` (M1).
+- Bounds (`UC1.cfg`, exactly as approved in UC1.md Q11): `N = 2`, `Amounts = {5}`, `DupMax = 2`, `MaxCrashes = 1` per service, `MaxRetries = 2` per order. No CONSTRAINT, no SYMMETRY.
+- Result: **wall, not verified.** TLC did not finish `UC1.cfg` at the contract bounds. It was stopped after 62 minutes: `80,850,928 states generated, 9,079,945 distinct states found, 4,644,890 states left on queue`, no violation seen. That is not a pass. Final distinct count, depth and wall time are not recorded. The agent's unmeasured estimate for the full N = 2 space is 10^11 to 10^12 distinct states.
+- Context only (scratch cfg, not the contract bound): N = 1 with the other bounds unchanged completes with `No error has been found`, 13,071,033 generated, 1,156,996 distinct, depth 34, 19 min 35 s.
+- Non-vacuity: all 15 `UC1_reach_*` cfgs are violated as required (Paid depth 6, Refunded 7, Failed, provider replay 6, replay caused only by a duplicate 6, refund at the provider 9, `WireRefundReq` 8, `WireDeclined` 5, crash 2, and others; details in the results file). The out-of-range half of rule D is not exercised in TLC, because the spec only generates `o` in `OrdIds`.
+- Buggy variant: `UC1_buggy` (M1) gives `Error: Invariant NoDoubleCharge is violated.` with a 6-state trace (PlaceOrder, Flush, Duplicate, Deliver, Deliver), 2,340 distinct states, depth 6.
+- Authoring time: about 1 hour 20 minutes, mostly waiting on TLC. Failed iterations: 0.
+- Machine time: hyperfine not run for `UC1.cfg` (no finished run to time).
+- Size: `UC1.tla` 438+ lines, `UC1.cfg` 26 lines.
+- Decision needed from the user (bounds change only with approval): SYMMETRY on `OrdIds`, N = 1 as the checked bound, lower `DupMax` or `MaxRetries`, or a bigger machine. A `VIEW` that drops `lastEvent`/`lastFx` is unsound for the action properties as written.
+- Friction: the state space at N = 2; a TLC run started with `&` dies when the tool call ends; TLC writes `*_TTrace_*` files into `spec/tla` on a violation (use `-noGenerateSpecTE`).
+- Details: [docs/results/uc1-tla.md](docs/results/uc1-tla.md)
 
 ## 5. Findings so far
 
