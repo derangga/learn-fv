@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/derangga/learn-formal-verification/internal/uc1/core"
+	mutants "github.com/derangga/learn-formal-verification/mutants/uc1"
 )
 
 var (
@@ -35,23 +36,10 @@ func TestConformanceUC1(t *testing.T) {
 	}
 }
 
-// m1Step is mutant M1: ChargeReqRecv approve ignores the record, so a second
-// approve charges again. The harness must report a divergence.
-func m1Step(s core.State, e core.Event) (core.State, []core.Effect) {
-	if e.Kind == core.ChargeReqRecv && s.ProvUp && uint64(e.O) < uint64(len(s.Slots)) && e.A > 0 && e.D == core.Approve {
-		t := s
-		t.Slots = append([]core.Slot(nil), s.Slots...)
-		p := &t.Slots[e.O].Prov
-		p.Rec, p.ChargeCount, p.Amt, p.OutReply = core.Approved, p.ChargeCount+1, e.A, true
-		return t, []core.Effect{{Kind: core.Charge, O: e.O, A: e.A}}
-	}
-	return core.Step(s, e)
-}
-
 func TestHarnessCatchesM1(t *testing.T) {
 	bin := BuildBend(t)
 	for seed := int64(1); seed <= int64(*seeds); seed++ {
-		d, err := Find(bin, m1Step, seed, *maxLen)
+		d, err := Find(bin, mutants.StepM1, seed, *maxLen)
 		if err != nil {
 			t.Fatal(err)
 		}

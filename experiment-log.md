@@ -262,6 +262,28 @@ $ bash bend/probes/run.sh >/dev/null; echo $?
 - Friction: the state space at N = 2; a TLC run started with `&` dies when the tool call ends; TLC writes `*_TTrace_*` files into `spec/tla` on a violation (use `-noGenerateSpecTE`).
 - Details: [docs/results/uc1-tla.md](docs/results/uc1-tla.md)
 
+### 4.11 UC1 mutants in Go, harness, Bend and TLA+
+
+- Date and time: 2026-11-22, about 10:52 to 11:30 UTC.
+- Tools: Go checker tests, conformance harness, Bend 2.0.40 plain gate, TLC 2.18.
+- Use case: UC1.
+- What was done: the six mutants of UC1.md section 5 (M1, M2a, M2b, M3, M4, M5) written in every tool: `mutants/uc1` (Go step variants plus a checker with `core.Step` as control), `bend/uc1/mutants/<id>/` (mutated `code.bend`, byte-identical `LAWS.bend`, `run.sh` with EXPECT files), `spec/tla/UC1_buggy_m*.tla` (minimal diffs of `UC1.tla`, same bounds as `UC1.cfg`).
+- Result: every mutant is rejected by every tool. No survivor.
+
+| Mutant | Go checks that fail | Harness (seed, first divergent event) | Bend first failing lemma | TLA+ violated property (trace states) |
+|---|---|---|---|---|
+| M1 | A13, A8, Inv, P1 | 4, 224 | `pp_charge_recv` | `NoDoubleCharge` (6) |
+| M2a | A12, A6, P2b(a), P2b(b), P3 | 1, 10 | `ps_refund_order_other` | `RefundedOnlyFromPaid` (2) |
+| M2b | A10, Inv, P2a | 2, 152 | `sok_step` | `RefundNeverExceedsCharge` (11) |
+| M3 | A13, A8, Inv, P1, ProvApplyCharge | 1, 4 (contract events only) | `pp_apply` | `NoDoubleCharge` (8) |
+| M4 | A12, A4, Inv, P2b(c), P3 | 1, 47 | `op_pay_ok` | `TerminalStable` (9) |
+| M5 | A13, A8 only | 10, 77 | `ps_replay_declined` | `PinProvRecStable` (6) |
+
+- M5 behaves as the contract predicts: P1-P3 and Inv do not catch it, only the A8/A13 pins do (Q7 gap). A TLC run of the non-pin properties on M5 was stopped after about 12 minutes (1,568,242 distinct, no violation), so its survival of P1-P3 in TLA+ is partial evidence; the Go checks show it fully.
+- Caveats: Bend reports only the first failing lemma, so it rejects M2b and M4 through `Inv` and M2a and M5 through pins, not through the P-law that section 5 names. Bend M3 stores `pending` in the `amt` field and emits `Charge(o, 0)`, because the frozen files fix `ProvRec` at five fields; Go and TLA+ use a separate field. The M3 and M5 Bend `PROOF.bend` copies were edited (M3 adds a lemma for the new event; M5 splits one case so the failure lands on the bug, not a stale proof shape). Paired with the correct code the M5 edit still checks; the M3 edit could not be validated that way. The harness cannot send `ProvApplyCharge`, so it rejects M3 through the deferred charge, not the race. The M2b A10 run in TLA+ was not done.
+- Re-run (orchestrator): `bash bend/uc1/mutants/run.sh` prints PASS for m1 to m5 and exits 0; `just check-tla-buggy` prints `6 buggy spec(s) rejected as expected`.
+- Details: [docs/results/uc1-mutants.md](docs/results/uc1-mutants.md)
+
 ## 5. Findings so far
 
 Phase 0 observations only, each from the cited results file. None is a verdict on H1, H2 or H3. Every Bend check below is the plain gate; `--verdict` has not run.

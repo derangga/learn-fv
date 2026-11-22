@@ -25,7 +25,7 @@ check-tla:
       case $name in *_buggy*|*_reach*) continue;; esac
       [ -f "spec/tla/$name.tla" ] || { echo "error: $cfg has no spec/tla/$name.tla" >&2; exit 1; }
       echo "== tlc $name"
-      tlc -metadir "$tmp/tlc-$name" -config "$cfg" "spec/tla/$name.tla"
+      tlc -noGenerateSpecTE -metadir "$tmp/tlc-$name" -config "$cfg" "spec/tla/$name.tla"
       n=$((n+1))
     done
     echo "check-tla: $n spec(s) passed"
@@ -42,7 +42,7 @@ check-tla-buggy:
       [ -f "spec/tla/$name.tla" ] || { echo "error: $cfg has no spec/tla/$name.tla" >&2; exit 1; }
       echo "== tlc (expect violation) $name"
       rc=0
-      tlc -metadir "$tmp/tlc-$name" -config "$cfg" "spec/tla/$name.tla" >"$tmp/tlc-$name.out" 2>&1 || rc=$?
+      tlc -noGenerateSpecTE -metadir "$tmp/tlc-$name" -config "$cfg" "spec/tla/$name.tla" >"$tmp/tlc-$name.out" 2>&1 || rc=$?
       if [ "$rc" -eq 0 ]; then
         echo "FAIL: $name passed but must produce a counterexample" >&2
         exit 1
@@ -75,6 +75,11 @@ prove-bend:
     done
     echo "prove-bend: $n proof file(s) checked"
     bash bend/probes/run.sh
+    for m in bend/uc*/mutants/run.sh; do
+      [ -e "$m" ] || continue
+      echo "== $m"
+      bash "$m"
+    done
 
 harness:
     #!/usr/bin/env bash
