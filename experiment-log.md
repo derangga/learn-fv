@@ -63,7 +63,7 @@ Phase 0 rows are not use cases. Times for authoring are the agents' estimates as
 | Phase 0: Bend I/O spike | Bend 2.0.40 | recommend option A (compiled binary reads events on stdin); option B (events embedded in generated source) works only in chunks; option C (`-o x.mjs` called from JS) works but unpinned | about 25 minutes programs plus about 25 minutes probes and write-up | about 12 edit/run cycles; failed iterations not recorded | not recorded / not a warm figure: mostly `hyperfine --runs 3 -N`, no warm-up (rough): compile 1.5 s; compiled run 5 to 7 ms at 10,000 events; interpreted run about 0.5 s | `print.bend` 6, `args.bend` 26, `stdin.bend` 37, `record.bend` 40 | no stdin effect; list literal breaks between 2,500 and 3,000 elements; interpreted stdin overflow above roughly 20 KB |
 | Phase 0: Bend soundness probes | Bend 2.0.40 (plain gate) | 14 of 14 false laws rejected (12 on the merits, 2 detector regressions); `run.sh` exits 0 | about 45 minutes plus about 10 minutes for the EXPECT rework | about 25 `bend` runs; failed iterations not recorded | not recorded / `run.sh` (14 probes) mean 5.550 s ± 0.290 s (about 0.40 s per probe is derived: 5.550 s / 14, includes `run.sh` overhead) | 306 (`*.bend`), `run.sh` 22, `EXPECT` files 26 | one error reported at a time; no tactics; `type_in_type` stopped at Russell version |
 | UC1 | TLA+ | not started | | | | | |
-| UC1 | Bend | not started | | | | | |
+| UC1 | Bend 2.0.40 (plain gate) | `ALL PROOFS CHECK`, 46 of 46 laws (Inv, P1, P2a, P2b a-d, P3, pins A1-A13 incl. rule D); `LAWS.bend` not yet user-approved | about 35 minutes | 12 failed proof iterations | first run 6.97 s / 6.484 s +/- 0.099 s | 3660 (`PROOF.bend` 2634) | affine and erasure rules; no match on computed values |
 | UC1 | harness | Go core and Bend port agree on 500 seeded sequences (75,787 events); M1 diverges at event 224 | about 30 min plus review fixes | not recorded | compile 8.2 s / 500-sequence run 10.1 s incl. compile | 739 | Bend I/O: fixed read size, no match on computed values; slow compile |
 | UC2 | TLA+ | not started | | | | | |
 | UC2 | Bend | not started | | | | | |
@@ -217,6 +217,32 @@ Use --verdict for mathematical validity.
 - Friction: Bend cannot match on a computed value and has no mutual recursion; `Fail` and `Done` are taken by Base; `File.read` takes a fixed size, so input of 16 MiB or more is rejected; compiling takes 6 to 8 s, well above the Phase 0 estimate of 1.5 s.
 - Caveat: the harness was run against `code.bend` as of commit dc3d570. If the proof task edits `code.bend`, the harness must be re-run.
 - Details: [docs/results/uc1-harness.md](docs/results/uc1-harness.md)
+
+### 4.9 UC1 Bend port, laws and proofs
+
+- Date and time: 2026-11-22, 10:13 to about 10:48 UTC (`date -u` by the agent).
+- Tool: Bend 2.0.40, plain gate.
+- Use case: UC1.
+- What was done: `spec.bend` (types and every helper the laws read), `code.bend` (the `step` port), `LAWS.bend` (46 laws: `init_inv`, `inv_step`, `inv_run`, P1, P2a, P2b(a)-(d), P3 step and run, and pins for A1-A13 including rule-D and guard-fail pins), `PROOF.bend` (46 `def Laws.*` plus 162 lemmas). `spec.bend` and `LAWS.bend` were committed (dc3d570) before any proof and have not changed since. They are a draft the user has not approved yet.
+- Orchestrator decisions on the law statements: rule-D pins (`pin_rule_d_order_down`, `pin_rule_d_prov_down`, `pin_rule_d_range`) and guard-fail pins (`pin_place_order_other`, `pin_flush_charge_req_other`, `pin_flush_refund_req_other`, `pin_flush_reply_other`) were added because the contract says "Frame F and rule D apply to every row". Pins take "receiving service up" and "o in range" as hypotheses. A8 is split into five laws.
+- Authoring time: about 35 minutes. Failed proof iterations: 12 of 15 (each a `bend PROOF.bend` run with a real error; list in the results file). Not counted: about 9 compile errors in `code.bend` during the port, and one deliberate mutation check.
+- Machine time (hyperfine `--warmup 1 --runs 5 -N`): warm 6.484 s +/- 0.099 s; first single run 6.97 s (not a true cold start).
+- Result: all 46 laws proved, plain gate only (`--verdict` cannot run). Re-run by the orchestrator (verbatim):
+
+```text
+$ bend bend/uc1/PROOF.bend
+ALL PROOFS CHECK
+Use --verdict for mathematical validity.
+rc=0
+$ bash bend/probes/run.sh >/dev/null; echo $?
+0
+```
+
+- Escape-hatch scan: `grep -cE '@unsafe|\?|import "' bend/uc1/PROOF.bend` gives 0; 46 `law` lines and 46 `def Laws.` lines.
+- Size: `spec.bend` 390, `code.bend` 203, `LAWS.bend` 433, `PROOF.bend` 2634 lines. Many proof arms were generated with throwaway Python scripts (not committed).
+- H3 note: P2b(a), (b), (d), P3, A12 and A13 hold for every state, reachable or not; only `inv_*`, P1, P2a and P2b(c) need `inv`. More in the results file, section 11.
+- Friction: erased versus live variables, affine use (`+` on hypotheses that are functions or pairs is rejected), no match on computed values, `case _ _` does not refine, one error reported per run.
+- Details: [docs/results/uc1-bend.md](docs/results/uc1-bend.md)
 
 ## 5. Findings so far
 
