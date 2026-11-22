@@ -193,6 +193,18 @@ Use --verdict for mathematical validity.
 - Size: `internal/sim` 584 lines (317 code, 267 tests).
 - Details: [docs/results/uc1-sim.md](docs/results/uc1-sim.md)
 
+### 4.7 UC1 Go pure core
+
+- Date and time: 2026-11-22 (start and end in the results file).
+- Tool: Go 1.26.10 (unit and seeded property tests).
+- Use case: UC1.
+- What was done: `internal/uc1/core`: types, `Init`, `Step` (rules F and D, pins A1-A11), helpers and `Inv` from `properties/UC1.md` sections 2-4. Tests `TestInv`, `TestP1NoDoubleCharge`, `TestP2aRefundNeverExceedsCharge`, `TestP2bRefundOnlyFromPaid`, `TestP3TerminalStable`, `TestPin*` for A1-A13, a cross-service rule D test, and non-vacuity counts on the seeded runs (1000 sequences of up to 200 events, N = 2..3; every antecedent fired, lowest count 56 for `WireRefundReq`).
+- Mutation sanity (applied, then reverted): M1 fails `TestInv`, `TestP1NoDoubleCharge`, `TestPinChargeReqRecv`, `TestPinProvRecStable`; M2a fails `TestP2bRefundOnlyFromPaid`, `TestP3TerminalStable`, `TestPinRefundOrder`, `TestPinLegalTransitions`. The committed mutant corpus is a later task.
+- Result: `go test ./internal/uc1/... -count=1` gives `ok  github.com/derangga/learn-formal-verification/internal/uc1/core`.
+- Size: `core.go` 348 lines, `core_test.go` 480 lines.
+- Ambiguities resolved by the literal reading: listed in the results file (failed guard gives frame F; `Refund` carries the provider `amt`; non-charge `Wire*` effects carry `A = 0`; A8 replays whatever `d` is).
+- Details: [docs/results/uc1-core.md](docs/results/uc1-core.md)
+
 ## 5. Findings so far
 
 Phase 0 observations only, each from the cited results file. None is a verdict on H1, H2 or H3. Every Bend check below is the plain gate; `--verdict` has not run.
