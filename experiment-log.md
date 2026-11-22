@@ -296,6 +296,17 @@ $ bash bend/probes/run.sh >/dev/null; echo $?
 - Friction: the module download needed the user (sandbox allowlist); tests take about 76 s because snapshots open a temporary handle on a crashed service.
 - Details: [docs/results/uc1-services.md](docs/results/uc1-services.md)
 
+### 4.13 UC1 replay of TLC traces against the Go services
+
+- Date and time: 2026-11-22, 12:10 to 12:17 UTC (agent timestamps).
+- Tools: TLC 2.18 (`-dumpTrace json`), Go test against `services/payment` `Cluster`.
+- Use case: UC1.
+- What was done: `harness/tlcreplay/gen.sh` (run with `go generate`) dumps JSON traces for the 15 reach witnesses and the 6 buggy specs into `testdata/`. The test maps each TLA+ action to a `Cluster` call (issuer decisions scripted from the trace) and compares slots, up flags and the in-flight message bag after every step.
+- Result: all 15 reach traces replay with every state equal. On each buggy trace the correct service leaves the buggy model at the bug step (M1 step 5, M2a step 1, M2b step 10, M3 step 4, M4 step 8, M5 step 5), and the violated property does not occur on the service. A tamper test shows the comparison can fail.
+- Not covered: no reach trace contains a Drop or a Restart; `dup`, `crashes`, `retries` and `lastFx` are not compared; the service-side check of `RefundedOnlyFromPaid` covers clauses (a) and (b) only, not (c) and (d) (open finding); M3's `ProvApplyCharge` has no service counterpart and is skipped (reported as a divergence).
+- How hard: about 7 minutes of agent time. TLC's JSON trace dump was enough; the friction was mapping a bag of message values onto the sim's indexed copies, and the issuer being consulted on every charge request, which ties the script to the trace shape.
+- Details: [docs/results/uc1-replay.md](docs/results/uc1-replay.md)
+
 ## 5. Findings so far
 
 Phase 0 observations only, each from the cited results file. None is a verdict on H1, H2 or H3. Every Bend check below is the plain gate; `--verdict` has not run.
