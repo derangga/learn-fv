@@ -284,6 +284,18 @@ $ bash bend/probes/run.sh >/dev/null; echo $?
 - Re-run (orchestrator): `bash bend/uc1/mutants/run.sh` prints PASS for m1 to m5 and exits 0; `just check-tla-buggy` prints `6 buggy spec(s) rejected as expected`.
 - Details: [docs/results/uc1-mutants.md](docs/results/uc1-mutants.md)
 
+### 4.12 UC1 services: order and payment provider over outbox plus HTTP
+
+- Date and time: 2026-11-22, about 11:55 to 12:30 UTC.
+- Tool: Go 1.26.10, chi v5.5.0, modernc.org/sqlite v1.62.0 (no CGO). The user fetched sqlite into the module cache outside the sandbox; the build runs offline (`GOPROXY=off`).
+- Use case: UC1.
+- What was done: `services/payment` with an order service and a provider service, each with its own SQLite file. Every request is one transaction (load the slot, `core.Step`, save the half-slot, ledger and outbox rows). Outbound messages go through `internal/sim` `Net`; a single-threaded `Cluster` driver delivers them through the chi handlers in-process (sockets only in the `ListenLocal` test, which binds 127.0.0.1 only). Crash closes the SQLite handle; restart reopens it and the outbox survives. Crash point: after commit, before the next send.
+- Result: `go test ./services/... -count=1` passes, 10 tests. Seeded fault runs (200 seeds x 150 steps) assert P1 on ledger rows, P2a and `Inv` after every step; a differential test (100 seeds) checks `Snapshot()` equals the fold of `core.Step` over the applied events. Coverage counts include 43 duplicates delivered, 152 drops, 905 crashes, 71 provider dedupes, 8 refund rows.
+- Limits: `synchronous=OFF` is durable only for the simulated crash (clean close), not power loss; services reject requests while down before calling `Step`, which duplicates rule D's up check; the issuer is consulted on every `ChargeReqRecv`, even when `Step` ignores the decision.
+- Size: `services/payment` 1,055 lines with tests.
+- Friction: the module download needed the user (sandbox allowlist); tests take about 76 s because snapshots open a temporary handle on a crashed service.
+- Details: [docs/results/uc1-services.md](docs/results/uc1-services.md)
+
 ## 5. Findings so far
 
 Phase 0 observations only, each from the cited results file. None is a verdict on H1, H2 or H3. Every Bend check below is the plain gate; `--verdict` has not run.
