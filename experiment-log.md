@@ -180,6 +180,19 @@ Use --verdict for mathematical validity.
 - Friction: no tactics, so every attempt is hand-written term syntax; defs are checked in file order; `(x, +eq) = i` gives `an annotated term (cannot infer)`; `In(v, v)` for a free `v` is stuck; the checker prints one error at a time.
 - Details: [docs/results/phase0-bend-probes.md](docs/results/phase0-bend-probes.md)
 
+### 4.6 UC1 infrastructure: Go module, justfile, sim package
+
+- Date and time: 2026-11-22, about 10:00 to 10:15 UTC.
+- Tool: Go 1.26.10 (no verification tool).
+- Use case: UC1 (shared with UC2-UC4).
+- What was done: `go.mod` (module `github.com/derangga/learn-formal-verification`, chi v5.5.0) and a `justfile` with `check-tla`, `check-tla-buggy`, `prove-bend`, `harness`, `test`, `all`. `internal/sim`: fake clock, seeded fault network (`Net[M]`: drop, duplicate up to `MaxDup`, reorder, scripted replay mode) and a seeded crasher with a per-service budget.
+- Deviation: `modernc.org/sqlite` is not in `go.mod` yet. The sandbox cannot download it (`storage.googleapis.com`, `modernc.org` and `gitlab.com` are not on the managed allowlist). The user will fetch it into the module cache; the services task adds it.
+- Known difference from TLA+: the sim bounds duplicates per sent copy, while `UC1.tla` counts `dup[m]` per message value, so Go random runs may duplicate more than TLC allows (Go explores a superset). Documented in `docs/results/uc1-sim.md`.
+- Sandbox friction: `just` writes shebang recipes under `XDG_RUNTIME_DIR` (read-only here), so runs in the sandbox need `XDG_RUNTIME_DIR=$TMPDIR`. The Go module cache must be moved to `$TMPDIR` (`GOMODCACHE`, `GOCACHE`, `GOPATH`).
+- Result: `go test ./internal/sim/... -count=1` gives `ok  github.com/derangga/learn-formal-verification/internal/sim` (13 tests); `just all` exits 0 on the tree at that point.
+- Size: `internal/sim` 584 lines (317 code, 267 tests).
+- Details: [docs/results/uc1-sim.md](docs/results/uc1-sim.md)
+
 ## 5. Findings so far
 
 Phase 0 observations only, each from the cited results file. None is a verdict on H1, H2 or H3. Every Bend check below is the plain gate; `--verdict` has not run.
