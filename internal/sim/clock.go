@@ -1,4 +1,4 @@
-// Package sim is the seeded, single-threaded fault layer shared by UC1-UC4.
+// Package sim is the seeded, single-threaded fault layer shared by UC1 and UC2.
 // It has no goroutines and no sleeps: every fault is a decision drawn from a
 // seed or forced by a script, and every decision lands in a Trace.
 //
@@ -29,7 +29,7 @@ type Real struct{}
 func (Real) Now() time.Time { return time.Now() }
 
 // Fake moves only on Advance or Set. Set may go backwards. A paused process
-// (UC3) is modelled by the caller keeping an old Now() value.
+// is modelled by the caller keeping an old Now() value.
 type Fake struct{ t time.Time }
 
 func NewFake(start time.Time) *Fake { return &Fake{t: start} }

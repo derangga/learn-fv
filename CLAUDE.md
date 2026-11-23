@@ -2,7 +2,7 @@
 
 ## Why
 
-Research project: verify one small system with two tools, TLA+ (the TLC model checker) and Bend 2 (a proof checker), over four use cases: UC1 idempotent payment, UC2 stock reservation, UC3 lease with fencing token, UC4 liveness on the UC1 flow. Each use case checks the same properties in both tools, then records what each tool cost and where it broke. Hypotheses H1-H3 are in `docs/handover.md` §1; test them, never assume them. A failed proof or an unprovable property is a result: record it.
+Research project: verify one small system with two tools, TLA+ (the TLC model checker) and Bend 2 (a proof checker), over two use cases: UC1 idempotent payment and UC2 stock reservation. Each use case checks the same properties in both tools, then records what each tool cost and where it broke. Hypotheses H1-H3 are in `docs/handover.md` §1; test them, never assume them. A failed proof or an unprovable property is a result: record it.
 
 ## What
 
@@ -14,7 +14,7 @@ Research project: verify one small system with two tools, TLA+ (the TLC model ch
 
 ## How
 
-Run `source .nix/env.sh` first in every shell. It puts the pinned tools on PATH: go, tlc, bend 2.0.40, just, hyperfine, jq and sqlite3. `nix develop` cannot run in this sandbox, so this file stands in for it. After a `flake.lock` change, ask the user to rebuild `.nix/dev` and regenerate `env.sh`. Scratch files and TLC metadirs go in `$TMPDIR`. Work without sudo and leave the system NixOS configuration alone.
+Run `source .nix/env.sh` first in every shell. It puts the pinned tools on PATH: go, tlc, bend 2.0.40, just, hyperfine, jq and sqlite3. `nix develop` cannot run in this sandbox, so this file stands in for it. On a machine where `nix develop` works (the MacBook), the file does not exist: run commands as `nix develop --command <cmd>` instead. After a `flake.lock` change, ask the user to rebuild `.nix/dev` and regenerate `env.sh`. Scratch files and TLC metadirs go in `$TMPDIR`. Work without sudo and leave the system NixOS configuration alone.
 
 Checks:
 
@@ -41,10 +41,10 @@ These apply to every task.
 
 ## Process
 
-There are five phases: 0 toolchain, then 1-4 for UC1-UC4. Stop at each checkpoint and wait for the user's approval:
+There are three phases: 0 toolchain, then 1-2 for UC1-UC2. Stop at each checkpoint and wait for the user's approval:
 
 1. End of Phase 0.
-2. All four `properties/UCn.md` files written. No TLA+, Bend or harness work starts on any use case before this approval.
+2. Both `properties/UCn.md` files written. No TLA+, Bend or harness work starts on any use case before this approval.
 3. Each use case done in both tools, including its mutants and the harness.
 
 A checkpoint report is a short summary, the log table, and what surprised you. Update `experiment-log.md` after every task.

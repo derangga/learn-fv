@@ -70,12 +70,7 @@ Phase 0 rows are not use cases. Times for authoring are the agents' estimates as
 | UC2 | TLA+ (TLC 2.18) | **wall** at the contract bounds (`UC2_wall_contract.cfg`): stopped after 60 min at level 8, 25,051,664 distinct, 23.4M on the queue, no violation seen; re-run on the 10-core MacBook: 149.6M distinct at level 10, then disk full (86 GB), see 4.21. Checked bounds (approved 2026-11-23) pass: `UC2.cfg` 2,055,926 distinct, depth 20 (28 s on the MacBook); `UC2_dup.cfg` 312,995 distinct, depth 21 (3 s). M1 and 30 reach witnesses violate as required | about 25 min (about 115 min with runs) | 2 failed | `UC2_proposed` 348.9 s (1 run) / not recorded | `UC2.tla` 428, `UC2_buggy.tla` 430, `UC2.cfg` 33 | state-space explosion from the in-flight message model on 2 cores |
 | UC2 | Bend 2.0.40 (plain gate) | `ALL PROOFS CHECK`, 29 of 29 laws (Inv, P2, P3, P4, P4a, P4b, P1b, A1, A2, P3b, pins S0 to S11); `spec.bend` and `LAWS.bend` approved 2026-11-23 (draft 5c5c144) | about 50 minutes | 14 failed proof iterations | first run 2.246 s / 2.358 s +/- 0.143 s | 3145 (`PROOF.bend` 2209) | no `Nat` arithmetic or list-sum lemmas in Base; affine rules on non-Data lists; no match on computed values |
 | UC2 | harness | Go core and Bend port agree on 500 seeded sequences (75,094 events); 9 of 9 contract-event mutants diverge (M1 at seed 19, event 7); M4 cannot be sent | about 20 min | 1 failed iteration (compile) | compile 4.9 s / 500-sequence run 6.0 s incl. compile | 957 | Bend I/O as in UC1 (no mutual recursion, no match on computed values); one stock only |
-| UC3 | TLA+ | not started | | | | | |
-| UC3 | Bend | not started | | | | | |
-| UC3 | harness | not started | | | | | |
-| UC4 | TLA+ | not started | | | | | |
-| UC4 | Bend | not started | | | | | |
-| UC4 | harness | not started | | | | | |
+| UC1 and UC2 | comparison write-up (no tool run) | `docs/comparison-bend-vs-tla.md` written, see 4.24; no new measurement | not recorded | not recorded | not applicable | 832 | none |
 
 Stop rule per tier (one use case) and tool: 2 hours of authoring or 15 failed iterations, whichever comes first.
 
@@ -507,6 +502,64 @@ $ bash bend/probes/run.sh >/dev/null; echo $?
 - Decision (user): stop after UC1 and UC2. The user's reason: two use cases are enough to show the difference between Bend and TLA+. UC3 (epic `dao`) and UC4 (epic `fxn`) are not started and stay open in the tracker. They can be resumed from `bd ready`.
 - Effect: the summary table rows for UC3 and UC4 stay at "not started". Any verdict on H1-H3 rests on UC1 and UC2 only. Both are state-machine use cases, so nothing here tests UC3 (fencing token) or UC4 (liveness).
 
+### 4.24 Bend vs TLA+ comparison document
+
+- Date and time: 2026-11-23, after 4.23 (MacBook, section 2). Exact times not recorded.
+- Tool: none (reading and writing only). A copywriter subagent wrote the prose from a source-tagged fact sheet that the orchestrator built from the log, the results files, the frozen contracts and `wc -l`. The orchestrator then checked the text.
+- Use case: UC1 and UC2 (UC3 and UC4 not built, 4.23).
+- What was done: wrote `docs/comparison-bend-vs-tla.md` (16 sections, plus 13.2 "Oddities in the record" and a final "Not recorded" list) from `COMPARISON-PROMPT.md`. No TLC run, no Bend run, no new measurement. Nothing under `properties/`, `LAWS.bend`, `.cfg` or a spec was edited. Nothing committed.
+- Bounds (TLC only), state count, distinct states, wall time: not applicable. Every TLC figure in the document is copied from earlier entries and carries its bound label.
+- Authoring time (spec or proof), AI iterations and how many, failed iterations: not recorded. One drafting pass by the subagent, then the orchestrator's check and two rounds of text fixes, 8 in all: a "7 times" ratio corrected to 7 to 8; the UC2 TLA+ failed-iteration wording; the escape-hatch audit wording; the H2 elapsed-time argument rewritten (the walls came alongside or after the first pass, so they cannot explain its length); glosses added at first use in section 1; two overclaims in section 15 matched to section 8; one unsourced inference removed from H2. Failed iterations are not defined for this task.
+- Machine time (hyperfine), cold: not applicable.
+- Machine time (hyperfine), warm: not applicable.
+- Result: file written. Checks run on it: no em or en dashes; no "verified"; "all inputs" only in the Bend-pass sentences; every numeric token in the document matches a fact-sheet token (script check, so it shows a number exists in the sheet, not that it sits next to the right label; the orchestrator read all 832 lines). The document keeps measured, estimated, derived and opinion apart.
+- Size (lines): `docs/comparison-bend-vs-tla.md` 832 by `wc -l` after the fixes.
+- Friction or walls hit, and things in the record that looked wrong:
+  - The log and the brief split machines by date. The record splits them by entry: 4.14 to 4.20 ran on the VPS even though they are dated 2026-11-23. The first MacBook run is 4.21.
+  - Line counts drifted: `UC1.tla` 438 in the log, 444 by `wc`; `UC1.cfg` 26 against 27; `harness/conformance/conformance_test.go` 86 against 75.
+  - `uc1-tla.md` says both "11" and 15 UC1 reach witnesses; `ls spec/tla` shows 45 reach cfgs (15 UC1, 30 UC2).
+  - The summary table puts the UC2 348.9 s figure in the "cold" column, but `uc2-tla.md` says cold and warm were not separated.
+  - UC1 TLA+ authoring is "about 1 h 20 min" in 4.10 and about 15 min of writing in `uc1-tla.md`.
+  - The smoke model shows 11 distinct states on the VPS (4.1) and 12 in the 4.22 `just check-tla` summary line. Not explained.
+  - Stale text: README (UC2 waiting on checkpoint 4, `UC2_proposed*.cfg` pending), `uc2-bend.md` (laws "draft"), pre-swap cfg names in `uc1-tla.md` and `uc2-tla.md`. Section 5 below is Phase 0 only.
+  - Section 2 says `env.sh` is not needed on the MacBook; `CLAUDE.md` says to source it.
+  - In 4.22 the choice to leave the three contradicted UC2 contract rows recorded and unedited was made without a named user answer, and the entry says so.
+- Details: [docs/comparison-bend-vs-tla.md](docs/comparison-bend-vs-tla.md)
+
+### 4.25 Public-facing article
+
+- Date and time: 2026-11-23, after 4.24. Exact times not recorded.
+- Tool: none (writing only). A copywriter subagent drafted from `docs/comparison-bend-vs-tla.md`; the orchestrator checked it.
+- Use case: UC1 and UC2, described without those labels for outside readers.
+- What was done: wrote `docs/article-bend-vs-tla.md`, a plain-language article (about 1,700 words) for readers who do not know the project. No new measurement, no TLC or Bend run, nothing committed.
+- Bounds (TLC only), state count, distinct states, wall time: not applicable; figures are copied from 4.24's source document.
+- Authoring time (spec or proof), AI iterations and how many, failed iterations: not recorded. One drafting pass, then 5 text fixes by the orchestrator (internal word "log" removed, wording of the reduced limits, a stock mutant with no Bend version, an inflated-times caveat narrowed to the payment runs, "Lean not available" scoped to the sandbox).
+- Machine time (hyperfine), cold: not applicable.
+- Machine time (hyperfine), warm: not applicable.
+- Result: every numeric token in the article appears in the comparison document; no em or en dashes; no internal labels (UC1, UC2, log entry numbers).
+- Size (lines): `docs/article-bend-vs-tla.md` 150 lines before the addition below.
+- Follow-up (user request, same day): added the sections "Why check a system at all", "Meet the two tools" (TLA+ and TLC, Bend 2, with a small counter example from the Phase 0 tests) and "How we compared them", replacing "How each tool works". The new text is general explanation, not new data; the only figures in it (the 11 states of the counter run) come from the comparison document.
+- Friction or walls hit: none recorded.
+- Details: [docs/article-bend-vs-tla.md](docs/article-bend-vs-tla.md)
+
+### 4.26 UC1 verify skill (project-local check for P1)
+
+- Date and time: 2026-11-23, after 4.25 (MacBook M4, 10 cores). Exact times not recorded.
+- Tool: TLA+ (TLC 2.18), Bend 2.0.40 (plain gate), Go tests; all from `nix develop`.
+- Use case: UC1, property P1 (`NoDoubleCharge`, an order is never charged twice).
+- What was done: wrote `.claude/skills/verify-uc1-idempotent-charge/` (`SKILL.md` and `check.sh`). One command runs the Bend proofs and Bend mutants, the Go core, mutant, conformance, replay and payment tests, and TLC on `UC1.cfg` plus the M1 and M3 mutants. No product file, spec, law or bound was changed. Nothing committed.
+- Bounds (TLC only), state count, distinct states, wall time: `UC1.cfg` N=1, Amounts {5}, DupMax 2, MaxCrashes 1, MaxRetries 2: 13,071,033 generated, 1,156,996 distinct, depth 34. `UC1_buggy.cfg` and `UC1_buggy_m3.cfg` (N=2) each stop at `Invariant NoDoubleCharge is violated.`
+- Authoring time (spec or proof), AI iterations and how many, failed iterations: not recorded. One failed scratch edit (a regex that did not match the Bend file), redone.
+- Machine time (hyperfine), cold: not applicable (not run under hyperfine).
+- Machine time (hyperfine), warm: not applicable. Plain wall time: full check 43 to 47 s, `quick` 19 s.
+- Result: `nix develop --command bash .claude/skills/verify-uc1-idempotent-charge/check.sh` printed `ALL UC1 P1 CHECKS PASS` before and after the scratch breaks. Scratch breaks of the real code, each undone afterwards (`git diff --stat` on the covered paths empty):
+  - Go, `core.go` guard `case p.Rec != NoRec:` replaced by `case false:`: `quick` exit 1; `TestInv`, `TestP1NoDoubleCharge`, `TestPinChargeReqRecv` and `TestPinProvRecStable` failed; the Bend proofs still passed (TLC and Bend do not read `core.go`).
+  - Bend, `code.bend` Approved branch charges again: `quick` exit 1; `SOME PROOFS FAIL`, and the Go conformance and mutant tests failed too.
+  - TLA+, `UC1.tla` rule A8 `P.rec = "NoRec"` replaced by `TRUE`: full run exit 1; `Error: Invariant NoDoubleCharge is violated.` on `UC1.cfg`.
+- Size (lines): `SKILL.md` 96, `check.sh` 37.
+- Friction or walls hit: the N=2 contract cfg is not run by the check (it is a recorded wall, 4.14). `--verdict` is not run. No concurrency test of the real ledger.
+- Details: [.claude/skills/verify-uc1-idempotent-charge/SKILL.md](.claude/skills/verify-uc1-idempotent-charge/SKILL.md)
+
 ## 5. Findings so far
 
 Phase 0 observations only, each from the cited results file. None is a verdict on H1, H2 or H3. Every Bend check below is the plain gate; `--verdict` has not run.
@@ -544,3 +597,12 @@ Copy for each new task. Fields follow `docs/handover.md` section 8 and `CLAUDE.m
 ```
 
 Also add or update the row in the summary table (section 3). If a Bend claim is ever accepted when false, record it in section 1 first.
+
+### 4.26 UC3 and UC4 removed from the repo
+
+- Date: 2026-11-23, after 4.25.
+- Decision (user): UC3 and UC4 are dropped, not paused. This replaces the last two sentences of the 4.23 decision, which said they stay open in the tracker.
+- What was done: deleted `properties/UC3.md` and `properties/UC4.md`, and 14 tracker issues (epics `dao` and `fxn` with their ten children, and the closed tasks 292.3 and 292.4). Removed the UC3 and UC4 rows from the summary table. Updated `README.md`, `CLAUDE.md`, `docs/handover.md`, `docs/agent/tla.md` and two comments in `internal/sim/clock.go`. The user also removed `HANDOVER-PROMPT.md` and `COMPARISON-PROMPT.md` by hand; 4.24 still names the latter as its source.
+- Left as written: `properties/UC1.md` (frozen; it still has a "UC4 support" paragraph and mentions UC4 in its scope), the results files, `docs/comparison-bend-vs-tla.md` and entries 4.23 and 4.24 above, because they record what was true when written. The comparison document says UC3 and UC4 were "not built".
+- Effect: H1 to H3 rest on UC1 and UC2 only, as in 4.23. Nothing was run and nothing was committed.
+- Also at the user's request: `README.md` got a project-structure tree, a current UC2 status (approved at checkpoint 4) and the approved UC2 bounds in place of the `_proposed` text. `CLAUDE.md` now says what to do where `.nix/env.sh` does not exist. `docs/results/uc2-bend.md` got an update note that `LAWS.bend` and `spec.bend` are approved.

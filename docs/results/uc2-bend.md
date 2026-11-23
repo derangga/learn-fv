@@ -3,6 +3,8 @@
 Tool: Bend 2 (bend 2.0.40), plain gate only. `--verdict` was not run (no Lean here, see `docs/results/phase0-bend-guide.md`), so every
 `ALL PROOFS CHECK` below is provisional. All commands ran after `source .nix/env.sh`, from the repo root.
 
+Update 2026-11-23: the user approved `LAWS.bend` and `spec.bend` at checkpoint 4 (`experiment-log.md` 4.21 and the summary table). The "draft pending approval" wording below is as written before that.
+
 `bend/uc2/LAWS.bend` and `bend/uc2/spec.bend` are **draft pending user approval**. They were committed as 5c5c144 so that the proofs could start, and they
 were not edited afterwards. `code.bend` was not edited after the commit either. Departures from the literal contract text are in section 10.
 

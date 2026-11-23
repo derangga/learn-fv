@@ -83,9 +83,8 @@ properties/UC1.md ...    plain-English properties, frozen after my approval
 spec/tla/                UCn.tla, UCn.cfg, UCn_buggy variants
 bend/ucN/                LAWS.bend, PROOF.bend, the Bend port of the core logic
 bend/probes/             soundness probes
-services/payment/        order and payment (UC1, UC4)
+services/payment/        order and payment (UC1)
 services/inventory/      stock reservation (UC2)
-services/lease/          lease manager and worker (UC3)
 internal/<uc>/core/      pure logic: Step(state, event) -> (state, effects)
 internal/sim/            injectable clock, fault-injecting transport
 harness/                 conformance tests
@@ -116,15 +115,6 @@ UC2, stock reservation:
 - P2: available + reserved + sold always equals the total.
 - P3: an expired reservation returns its stock exactly once.
 - P4: a reservation cannot be confirmed after it expired.
-
-UC3, lease with fencing token:
-- P1: every grant gets a strictly larger fencing token than the previous grant.
-- P2: the protected resource never accepts a write with a token lower than one it has already seen.
-- Expected finding: a lease without fencing allows a stale holder to write after a pause. The spec for the buggy variant must show this. The fenced variant must not.
-
-UC4, liveness on the UC1 payment flow:
-- L1: every payment that succeeded at the provider is eventually recorded in the order service.
-- State the fairness assumptions explicitly (retries keep happening, services eventually restart). TLC liveness checking is subtle and easy to get wrong. Explain each assumption.
 
 ## 6. Verification tracks
 
@@ -178,4 +168,4 @@ Stop and report at each of these, then wait:
 3. UC1 done in both tools, including mutants and harness.
 4. Each later use case.
 
-Phase order: Phase 1 is UC1, Phase 2 is UC2, Phase 3 is UC3, Phase 4 is UC4. A report is a short summary, the log table, and what surprised you.
+Phase order: Phase 1 is UC1, Phase 2 is UC2. A report is a short summary, the log table, and what surprised you.

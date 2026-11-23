@@ -2,12 +2,10 @@
 
 ## What this is
 
-A research project. It verifies one small system with two tools: TLA+ (checked by the TLC model checker) and Bend 2 (a proof checker). It does this over four use cases:
+A research project. It verifies one small system with two tools: TLA+ (checked by the TLC model checker) and Bend 2 (a proof checker). It does this over two use cases:
 
 - UC1: idempotent payment.
 - UC2: stock reservation.
-- UC3: lease with fencing token.
-- UC4: liveness on the UC1 flow.
 
 Each use case checks the same properties in both tools. We then record what each tool cost and where it broke. A failed proof or an unprovable property is a result, so we record it.
 
@@ -18,9 +16,43 @@ Status:
 | Use case | Status |
 |---|---|
 | UC1 | Done. TLA+, Bend, mutants and harness are checked. TLC is checked at N=1; N=2 is a recorded wall. |
-| UC2 | Built, waiting for checkpoint 4 approval. Go core and inventory service, Bend proofs (29 laws, draft pending approval), TLA+ spec, 10 mutants and the Go vs Bend harness are committed. TLC does not finish at the contract bounds (`UC2.cfg`, `UC2_buggy_m2.cfg`); smaller bounds in `UC2_proposed*.cfg` await approval. |
-| UC3 | Not started. |
-| UC4 | Not started. |
+| UC2 | Done, approved at checkpoint 4 (2026-11-23). Go core and inventory service, Bend proofs (29 laws), TLA+ spec, 10 mutants and the Go vs Bend harness. TLC is checked at reduced bounds (`UC2.cfg`, `UC2_dup.cfg`); the contract bound is a recorded wall (`UC2_wall_contract.cfg`). |
+
+## Project structure
+
+```text
+.
+├── README.md, CLAUDE.md, AGENTS.md   Project guide, agent rules, beads agent notes
+├── experiment-log.md                 Log entries and the summary table by use case and tool
+├── docs/
+│   ├── handover.md                   The brief and source of truth
+│   ├── agent/                        How-to notes: bend.md, tla.md, go.md
+│   ├── results/                      One write-up per task (phase0-*, uc1-*, uc2-*)
+│   ├── bend-*.txt                    Saved Bend language guide and Base library listing
+│   └── comparison-bend-vs-tla.md, article-bend-vs-tla.md   Write-ups of the comparison
+├── properties/
+│   ├── UC1.md                        Frozen contract: idempotent payment
+│   └── UC2.md                        Frozen contract: stock reservation
+├── spec/tla/                         TLA+ specs and cfgs: Smoke, UC1, UC2, *_buggy*, *_reach_*, *_wall_*
+├── bend/
+│   ├── uc1/, uc2/                    code.bend, spec.bend, LAWS.bend, PROOF.bend, main.bend; mutants/ with run.sh
+│   ├── probes/                       False laws that Bend must reject
+│   └── smoke/, io/                   Phase 0 smoke proof and I/O spike
+├── internal/
+│   ├── uc1/core/, uc2/core/          The pure Step(state, event) -> (state, effects), with its tests
+│   └── sim/                          Seeded fake clock, fault network and crasher
+├── services/
+│   ├── payment/                      UC1 order and provider services, SQLite outbox, HTTP
+│   └── inventory/                    UC2 inventory service, same shape
+├── mutants/uc1/, uc2/                Go mutants and the tests that must reject them
+├── harness/
+│   ├── conformance/, uc2conformance/ Go core against the compiled Bend port
+│   └── tlcreplay/                    Replay of stored TLC traces through the service
+├── .claude/skills/                   verify-uc1-idempotent-charge, verify-uc2-stock-never-oversold
+├── .beads/                           Issue tracker (bd)
+├── justfile                          Check recipes
+└── flake.nix, flake.lock             Pinned toolchain
+```
 
 ## Repo layout
 
@@ -42,11 +74,12 @@ Status:
 | `mutants/ucN/` | Go mutants. |
 | `harness/` | Conformance harness (Go core vs compiled Bend) and TLC trace replay. |
 | `justfile` | The check recipes. |
-| `flake.nix`, `.nix/env.sh` | The pinned toolchain. |
+| `flake.nix`, `flake.lock` | The pinned toolchain. `.nix/env.sh` (git-ignored) is generated only for the Claude sandbox. |
+| `.claude/skills/` | One verify skill per use case: a single `check.sh` that runs every check and explains how to read a failure. |
 
 ## Setup
 
-Where it works, run `nix develop`. It gives you go, gopls, sqlite, TLC (tlaplus 1.8.0), just, hyperfine, jq and bend 2.0.40.
+Where it works, run `nix develop`. It gives you go, gopls, sqlite, TLC (tlaplus 1.8.0), just, hyperfine, jq and bend 2.0.40. On the MacBook it works, and then `.nix/env.sh` and the sandbox quirks below do not apply.
 
 In the Claude sandbox `nix develop` cannot run. Use this in every shell instead:
 
@@ -79,7 +112,7 @@ Run `source .nix/env.sh` first (and the quirks above). List the recipes with `ju
 | `just harness` | `go test ./harness/...`. |
 | `just all` | `test`, `check-tla`, `check-tla-buggy`, `prove-bend`, `harness`, in that order. |
 
-`just check-tla` runs `UC2.cfg` and `just check-tla-buggy` runs `UC2_buggy_m2.cfg`; neither finishes at the UC2 contract bounds yet (see below). Run single TLC jobs by hand until a bound is approved.
+`just check-tla-buggy` runs `UC2_buggy_m2.cfg` with no timeout, and that cfg uses the UC2 contract bounds, so it never finishes. Run the UC2 buggy cfgs by hand with `timeout`, or use the verify skills in `.claude/skills/`, which skip it.
 
 ### TLC
 
@@ -102,12 +135,11 @@ The cfg name tells you what the run is for. The module is the part before the fi
 | `UCn_buggy*.cfg` | A mutant (`UCn_buggy_m3.tla` and so on). TLC must report a violation. |
 | `UCn_reach_*.cfg` | A reachability witness. It asserts a state is never reached, so TLC must violate it. This shows a property is not vacuous. |
 | `UCn_wall_*.cfg` | A recorded wall: the contract bounds that did not finish. |
-| `UCn_proposed*.cfg` | Smaller bounds proposed to the user. They wait for approval. |
 
 Warnings:
 
-- `UC2.cfg` holds the contract bounds. It does not finish: 60 min on this machine stopped at 25 M distinct states with no violation seen. `UC2_proposed.cfg` and `UC2_proposed_dup.cfg` pass, but they are not approved. Do not move bounds without approval.
-- `UC1.cfg` is the approved N=1 bound (about 5 min). `UC1_wall_n2.cfg` is the contract bound and does not finish.
+- `UC2.cfg` and `UC2_dup.cfg` are the approved reduced bounds (2,055,926 and 312,995 distinct states, no error). `UC2_wall_contract.cfg` is the contract bound and does not finish: 60 min stopped at 25 M distinct states with no violation seen. Do not run it, and do not move bounds without approval.
+- `UC1.cfg` is the approved N=1 bound (about 5 min on a 2-core VPS, 23 s on the MacBook). `UC1_wall_n2.cfg` is the contract bound and does not finish.
 - TLC can fill the disk. It spills states to the metadir. Remove each run's metadir when it ends: `rm -rf $TMPDIR/<run>`.
 - Every run costs about 1.5 s of JVM start-up.
 
@@ -185,7 +217,7 @@ The rules are in `CLAUDE.md` and `docs/handover.md` sections 7 to 9. In short:
 - **Evidence.** Back every "verified" or "proved" claim with the command and its pasted output.
 - **Mutants.** Each use case keeps at least three mutants. Each is the same bug in every tool. TLA+, Bend and the harness (where possible) must reject it. Record what each tool says.
 - **Soundness alert.** If Bend ever accepts a false statement, record it at the top of `experiment-log.md` (section 1). Keep the probes in `bend/probes/` passing.
-- **Checkpoints.** There are five phases: 0 toolchain, then UC1 to UC4. Stop and wait for the user's approval at: the end of Phase 0; all four `properties/UCn.md` written (no TLA+, Bend or harness work before this); each use case done in both tools with mutants and harness.
+- **Checkpoints.** There are three phases: 0 toolchain, then UC1 and UC2. Stop and wait for the user's approval at: the end of Phase 0; both `properties/UCn.md` written (no TLA+, Bend or harness work before this); each use case done in both tools with mutants and harness.
 - **Stop rule.** Per use case and tool: 2 hours of authoring or 15 failed iterations, whichever comes first. Then record the wall and move on. A failed iteration is a failed model check (TLA+) or a failed proof (Bend).
 - **Log after each task.** Update `experiment-log.md` using the entry template in its section 6. Add a write-up in `docs/results/`.
 - **Commits.** Commit only when asked. Branch first if on `main`. Commit messages name no issue ids.
