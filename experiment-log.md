@@ -62,8 +62,8 @@ Phase 0 rows are not use cases. Times for authoring are the agents' estimates as
 | Phase 0: Bend smoke law + proof | Bend 2.0.40 (plain gate) | `ALL PROOFS CHECK`, 3 laws, no escape hatch; mutants (a) Inc=0 and (b) cap 2 survive | about 10 minutes | AI iterations not recorded; 5 failed proof iterations | not recorded / hyperfine (10 runs, 2 warmups, noisy machine) mean 510.2 ms +/- 217.6 ms and 781.4 ms +/- 87.7 ms, minimum 357.7 ms | `code.bend` 21, `LAWS.bend` 21, `PROOF.bend` 26 | `Event` name clash; termination argument order; affine use; match order |
 | Phase 0: Bend I/O spike | Bend 2.0.40 | recommend option A (compiled binary reads events on stdin); option B (events embedded in generated source) works only in chunks; option C (`-o x.mjs` called from JS) works but unpinned | about 25 minutes programs plus about 25 minutes probes and write-up | about 12 edit/run cycles; failed iterations not recorded | not recorded / not a warm figure: mostly `hyperfine --runs 3 -N`, no warm-up (rough): compile 1.5 s; compiled run 5 to 7 ms at 10,000 events; interpreted run about 0.5 s | `print.bend` 6, `args.bend` 26, `stdin.bend` 37, `record.bend` 40 | no stdin effect; list literal breaks between 2,500 and 3,000 elements; interpreted stdin overflow above roughly 20 KB |
 | Phase 0: Bend soundness probes | Bend 2.0.40 (plain gate) | 14 of 14 false laws rejected (12 on the merits, 2 detector regressions); `run.sh` exits 0 | about 45 minutes plus about 10 minutes for the EXPECT rework | about 25 `bend` runs; failed iterations not recorded | not recorded / `run.sh` (14 probes) mean 5.550 s ± 0.290 s (about 0.40 s per probe is derived: 5.550 s / 14, includes `run.sh` overhead) | 306 (`*.bend`), `run.sh` 22, `EXPECT` files 26 | one error reported at a time; no tactics; `type_in_type` stopped at Russell version |
-| UC1 | TLA+ (TLC 2.18) | **wall**: N=2 (approved bounds) unfinished after 62 min, 9,079,945 distinct, 4.6M on queue, no violation seen; N=1 scratch run passes (1,156,996 distinct, 19 min 35 s); 15 reach witnesses and M1 violate | about 1 h 20 min (mostly TLC) | 0 failed | not timed (no finished run) | `UC1.tla` 438+, `UC1.cfg` 26 | state-space explosion at N=2 on 2 cores / 1.9 GB |
-| UC1 | Bend 2.0.40 (plain gate) | `ALL PROOFS CHECK`, 46 of 46 laws (Inv, P1, P2a, P2b a-d, P3, pins A1-A13 incl. rule D); `LAWS.bend` not yet user-approved | about 35 minutes | 12 failed proof iterations | first run 6.97 s / 6.484 s +/- 0.099 s | 3660 (`PROOF.bend` 2634) | affine and erasure rules; no match on computed values |
+| UC1 | TLA+ (TLC 2.18) | no error at the checked bound N=1 (approved 2026-11-23): 1,156,996 distinct, depth 34, 5 min 01 s; **wall** at N=2 (contract bounds, `UC1_wall_n2.cfg`): unfinished after 62 min, 9,079,945 distinct, 4.6M on queue, no violation seen; 15 reach witnesses and 6 mutants violate | about 1 h 20 min (mostly TLC) | 0 failed | not timed with hyperfine; N=1 single run 5 min 01 s | `UC1.tla` 438+, `UC1.cfg` 27, `UC1_wall_n2.cfg` 27 | state-space explosion at N=2 on 2 cores / 1.9 GB |
+| UC1 | Bend 2.0.40 (plain gate) | `ALL PROOFS CHECK`, 46 of 46 laws (Inv, P1, P2a, P2b a-d, P3, pins A1-A13 incl. rule D); `spec.bend` and `LAWS.bend` approved 2026-11-23 | about 35 minutes | 12 failed proof iterations | first run 6.97 s / 6.484 s +/- 0.099 s | 3660 (`PROOF.bend` 2634) | affine and erasure rules; no match on computed values |
 | UC1 | harness | Go core and Bend port agree on 500 seeded sequences (75,787 events); M1 diverges at event 224 | about 30 min plus review fixes | not recorded | compile 8.2 s / 500-sequence run 10.1 s incl. compile | 739 | Bend I/O: fixed read size, no match on computed values; slow compile |
 | UC2 | TLA+ | not started | | | | | |
 | UC2 | Bend | not started | | | | | |
@@ -223,7 +223,7 @@ Use --verdict for mathematical validity.
 - Date and time: 2026-11-22, 10:13 to about 10:48 UTC (`date -u` by the agent).
 - Tool: Bend 2.0.40, plain gate.
 - Use case: UC1.
-- What was done: `spec.bend` (types and every helper the laws read), `code.bend` (the `step` port), `LAWS.bend` (46 laws: `init_inv`, `inv_step`, `inv_run`, P1, P2a, P2b(a)-(d), P3 step and run, and pins for A1-A13 including rule-D and guard-fail pins), `PROOF.bend` (46 `def Laws.*` plus 162 lemmas). `spec.bend` and `LAWS.bend` were committed (dc3d570) before any proof and have not changed since. They are a draft the user has not approved yet.
+- What was done: `spec.bend` (types and every helper the laws read), `code.bend` (the `step` port), `LAWS.bend` (46 laws: `init_inv`, `inv_step`, `inv_run`, P1, P2a, P2b(a)-(d), P3 step and run, and pins for A1-A13 including rule-D and guard-fail pins), `PROOF.bend` (46 `def Laws.*` plus 162 lemmas). `spec.bend` and `LAWS.bend` were committed (dc3d570) before any proof and have not changed since. They are a draft the user has not approved yet. (Update 2026-11-23: the user approved both files, including the added pins and their hypotheses.)
 - Orchestrator decisions on the law statements: rule-D pins (`pin_rule_d_order_down`, `pin_rule_d_prov_down`, `pin_rule_d_range`) and guard-fail pins (`pin_place_order_other`, `pin_flush_charge_req_other`, `pin_flush_refund_req_other`, `pin_flush_reply_other`) were added because the contract says "Frame F and rule D apply to every row". Pins take "receiving service up" and "o in range" as hypotheses. A8 is split into five laws.
 - Authoring time: about 35 minutes. Failed proof iterations: 12 of 15 (each a `bend PROOF.bend` run with a real error; list in the results file). Not counted: about 9 compile errors in `code.bend` during the port, and one deliberate mutation check.
 - Machine time (hyperfine `--warmup 1 --runs 5 -N`): warm 6.484 s +/- 0.099 s; first single run 6.97 s (not a true cold start).
@@ -258,7 +258,7 @@ $ bash bend/probes/run.sh >/dev/null; echo $?
 - Authoring time: about 1 hour 20 minutes, mostly waiting on TLC. Failed iterations: 0.
 - Machine time: hyperfine not run for `UC1.cfg` (no finished run to time).
 - Size: `UC1.tla` 438+ lines, `UC1.cfg` 26 lines.
-- Decision needed from the user (bounds change only with approval): SYMMETRY on `OrdIds`, N = 1 as the checked bound, lower `DupMax` or `MaxRetries`, or a bigger machine. A `VIEW` that drops `lastEvent`/`lastFx` is unsound for the action properties as written.
+- Decision needed from the user (bounds change only with approval): SYMMETRY on `OrdIds`, N = 1 as the checked bound, lower `DupMax` or `MaxRetries`, or a bigger machine. A `VIEW` that drops `lastEvent`/`lastFx` is unsound for the action properties as written. Resolved 2026-11-23, see 4.14.
 - Friction: the state space at N = 2; a TLC run started with `&` dies when the tool call ends; TLC writes `*_TTrace_*` files into `spec/tla` on a violation (use `-noGenerateSpecTE`).
 - Details: [docs/results/uc1-tla.md](docs/results/uc1-tla.md)
 
@@ -306,6 +306,17 @@ $ bash bend/probes/run.sh >/dev/null; echo $?
 - Not covered: no reach trace contains a Drop or a Restart; `dup`, `crashes`, `retries` and `lastFx` are not compared; the service-side check of `RefundedOnlyFromPaid` covers clauses (a) and (b) only, not (c) and (d) (open finding); M3's `ProvApplyCharge` has no service counterpart and is skipped (reported as a divergence).
 - How hard: about 7 minutes of agent time. TLC's JSON trace dump was enough; the friction was mapping a bag of message values onto the sim's indexed copies, and the issuer being consulted on every charge request, which ties the script to the trace shape.
 - Details: [docs/results/uc1-replay.md](docs/results/uc1-replay.md)
+
+### 4.14 UC1 TLC checked bound set to N = 1
+
+- Date and time: 2026-11-23, about 01:00 to 01:15 UTC.
+- Tool: TLA+ (TLC 2.18), 2 workers, default 274 MB heap (run settings, not bounds).
+- Use case: UC1.
+- What was done: the user approved N = 1 as the checked bound and N = 2 as a recorded wall. `spec/tla/UC1.cfg` now has `N = 1`. The unchanged N = 2 contract cfg moved to `spec/tla/UC1_wall_n2.cfg`, which `just check-tla` skips (`*_wall*`). The reach and buggy cfgs keep N = 2. The user also approved `spec.bend` and `LAWS.bend` (with the added pins), the TLA+ modelling choices of 4.10 (a no-op RetryTimeout still uses up MaxRetries, client and flush events always enabled, DupMax per message value) and the M3 Bend encoding.
+- Bounds: `N = 1`, `Amounts = {5}`, `DupMax = 2`, `MaxCrashes = 1` per service, `MaxRetries = 2` per order. No CONSTRAINT, SYMMETRY or VIEW.
+- Result: `Model checking completed. No error has been found.` 13,071,033 generated, 1,156,996 distinct, depth 34, `Finished in 05min 01s`. Same counts as the earlier scratch run, which took 19 min 35 s on 1 worker while sharing the cores.
+- Lost coverage: TLC no longer checks two orders at once (interleaved messages, a shared crash budget, rule D with another order's messages in flight). The Bend laws (no bound) and the Go tests (2 or 3 slots) still cover it.
+- Details: [docs/results/uc1-tla.md](docs/results/uc1-tla.md), section "Checked bound (N = 1)".
 
 ## 5. Findings so far
 

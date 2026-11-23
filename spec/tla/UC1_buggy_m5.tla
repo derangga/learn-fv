@@ -1,9 +1,9 @@
 ---- MODULE UC1_buggy_m5 ----
 \* MUTANT M5 (properties/UC1.md section 5): provider dedupes only on Approved: a request after Declined is handled as if rec = NoRec.
 \* Copy of UC1.tla; only the lines marked "M5:" differ (see `diff UC1.tla UC1_buggy_m5.tla`).
-\* Bounds are those of UC1.cfg.
+\* Bounds are the N=2 contract bounds (as in UC1_wall_n2.cfg); TLC finds the violation well before that wall.
 \* UC1: idempotent payment (order service and payment provider, with retries).
-\* Mirrors properties/UC1.md sections 2 to 4 directly. Bounds live in UC1.cfg.
+\* Mirrors properties/UC1.md sections 2 to 4 directly. Bounds live in the .cfg files (UC1.cfg is the checked N=1 bound).
 EXTENDS Naturals, Integers, Sequences, FiniteSets
 
 CONSTANTS N, Amounts, DupMax, MaxCrashes, MaxRetries

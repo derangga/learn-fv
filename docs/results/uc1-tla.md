@@ -4,6 +4,8 @@ Date: 2026-11-22. Authoring start 10:07:12 UTC, end about 11:20 UTC (about 73 mi
 
 Status: **PARTIAL. The spec parses, every reachability witness and the M1 mutant behave as required, but TLC did not finish UC1.cfg at the contract bounds.** I stopped it after 62 min with 9.08 M distinct states and a still-growing queue (a wall, see "Result" and "Friction"). No `ALL CLEAR` claim is made for UC1.cfg at N=2. A complete pass exists only for a smaller bound that is NOT the contract's (N=1, scratch cfg), reported separately and labelled.
 
+Update 2026-11-23: the user approved **N = 1 as the checked bound** and N = 2 as a recorded wall. `spec/tla/UC1.cfg` now has `N = 1` (other bounds unchanged) and is what `just check-tla` runs. The N = 2 contract bounds are kept unchanged in `spec/tla/UC1_wall_n2.cfg`, which `check-tla` skips. See "Checked bound (N = 1)" below. The N = 2 sections that follow are the original record; where they say `UC1.cfg` they mean the N = 2 file, now `UC1_wall_n2.cfg`.
+
 ## What was built
 
 | File | Content |
@@ -64,6 +66,32 @@ Finished in 19min 35s at (2026-11-22 11:11:46)
 ```
 
 (1 worker, 250 MB heap, shared the 2 cores with the N=2 run, so the time is inflated.) All invariants and all 15 action properties held for one order. Two orders share the crash budget and the clock but not the messages, so N=2 is roughly the square of this. The figure "order 10^11 to 10^12 distinct states" is an UNMEASURED estimate (a back-of-envelope square of the N=1 count, not a TLC result): out of reach on this machine, not a modelling accident I can prune away.
+
+## Checked bound (N = 1), approved 2026-11-23
+
+Decision: the user chose "N = 1 checked, N = 2 wall" from the options in "Friction and walls". No other bound, CONSTRAINT, SYMMETRY or VIEW was added. The reach witnesses and the buggy cfgs keep N = 2 because TLC finds their violations quickly there.
+
+Bounds (`spec/tla/UC1.cfg`): `N = 1`, `Amounts = {5}`, `DupMax = 2`, `MaxCrashes = 1` per service, `MaxRetries = 2` per order.
+
+Command and output (2 workers, default 274 MB heap, 2026-11-23):
+
+```bash
+tlc -noGenerateSpecTE -workers auto -metadir $TMPDIR/n1/meta2 -config UC1.cfg UC1.tla
+```
+
+```text
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 7.5E-7
+  based on the actual fingerprints:  val = 3.9E-8
+13071033 states generated, 1156996 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 34.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 18 and the 95th percentile is 10).
+Finished in 05min 01s at (2026-11-23 01:06:59)
+```
+
+What N = 1 does not check: anything that needs two orders at once. That covers two orders' messages interleaved in the network, two orders sharing one crash budget, and rule D for one order while another order's messages are in flight. The Bend laws have no bound on `N`, and the Go tests run 2 or 3 slots, so those tools still cover two orders. TLC does not.
 
 ## Non-vacuity: reachability witnesses (TLC must violate each)
 

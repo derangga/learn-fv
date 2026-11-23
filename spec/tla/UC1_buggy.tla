@@ -3,7 +3,7 @@
 \* d = Approve ignores rec, adds 1 to chargeCount and emits Charge every time. Only that one
 \* definition differs from UC1.tla (see `diff UC1.tla UC1_buggy.tla`).
 \* UC1: idempotent payment (order service and payment provider, with retries).
-\* Mirrors properties/UC1.md sections 2 to 4 directly. Bounds live in UC1.cfg.
+\* Mirrors properties/UC1.md sections 2 to 4 directly. Bounds live in the .cfg files (UC1.cfg is the checked N=1 bound).
 EXTENDS Naturals, Integers, Sequences, FiniteSets
 
 CONSTANTS N, Amounts, DupMax, MaxCrashes, MaxRetries
