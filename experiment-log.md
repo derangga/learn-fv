@@ -66,7 +66,7 @@ Phase 0 rows are not use cases. Times for authoring are the agents' estimates as
 | UC1 | Bend 2.0.40 (plain gate) | `ALL PROOFS CHECK`, 46 of 46 laws (Inv, P1, P2a, P2b a-d, P3, pins A1-A13 incl. rule D); `spec.bend` and `LAWS.bend` approved 2026-11-23 | about 35 minutes | 12 failed proof iterations | first run 6.97 s / 6.484 s +/- 0.099 s | 3660 (`PROOF.bend` 2634) | affine and erasure rules; no match on computed values |
 | UC1 | harness | Go core and Bend port agree on 500 seeded sequences (75,787 events); M1 diverges at event 224 | about 30 min plus review fixes | not recorded | compile 8.2 s / 500-sequence run 10.1 s incl. compile | 739 | Bend I/O: fixed read size, no match on computed values; slow compile |
 | UC2 | TLA+ | not started | | | | | |
-| UC2 | Bend | not started | | | | | |
+| UC2 | Bend 2.0.40 (plain gate) | `ALL PROOFS CHECK`, 29 of 29 laws (Inv, P2, P3, P4, P4a, P4b, P1b, A1, A2, P3b, pins S0 to S11); `spec.bend` and `LAWS.bend` are a draft pending user approval (5c5c144) | about 50 minutes | 14 failed proof iterations | first run 2.246 s / 2.358 s +/- 0.143 s | 3145 (`PROOF.bend` 2209) | no `Nat` arithmetic or list-sum lemmas in Base; affine rules on non-Data lists; no match on computed values |
 | UC2 | harness | not started | | | | | |
 | UC3 | TLA+ | not started | | | | | |
 | UC3 | Bend | not started | | | | | |
@@ -343,6 +343,32 @@ $ bash bend/probes/run.sh >/dev/null; echo $?
 - Size (lines): `service.go` 290, `store.go` 133, `http.go` 72, `service_test.go` 368.
 - Friction or walls hit: the UC1 approach, where a down service refuses every request, does not work here, because `Tick` and `Restart` must reach `Step`. The crash is a clean close and reopen, not a power loss (`synchronous(OFF)`, the same setting as UC1). The service rewrites the whole state on every request. Only 30 confirms happened per 150 runs; directed tests cover the confirm path.
 - Details: [docs/results/uc2-services.md](docs/results/uc2-services.md)
+
+### 4.17 UC2 Bend port, laws and proofs
+
+- Date and time: 2026-11-23, 03:59:49 to 04:49:33 UTC (the stop-rule clock).
+- Tool: Bend 2.0.40, plain gate only. `--verdict` was not run (no Lean here).
+- Use case: UC2 stock reservation.
+- What was done: `spec.bend` (types and every helper the laws read), `code.bend` (the `step` port, with `run` and `run_fx`), `LAWS.bend` (29 laws) and `PROOF.bend` (29 `def Laws.*` plus 298 lemmas). `spec.bend` and `LAWS.bend` were committed in 5c5c144 before any proof and have not changed since. They are a draft the user has not approved yet. Departures from the literal UC2.md text are listed in `docs/results/uc2-bend.md`, section 6:
+  - one `stock` field instead of a list (UC2.md section 6.7);
+  - pins use witness counters (`a2 + qty == available`);
+  - rejection pins use the spec functions `*_reason` under a "not accepted" hypothesis;
+  - P4 and P4b are stated by id under `inv`;
+  - P3b is a fold over every record.
+- Authoring time: about 50 minutes. Failed iterations: 14 failed proof iterations (the limit is 15), plus about 7 compile errors in code and spec before the law commit, which are not counted. Most of `PROOF.bend` came from throwaway Python templates over the three events, so most failures were generator typos.
+- Machine time (hyperfine), cold: not recorded (first single run 2.246 s).
+- Machine time (hyperfine), warm: 2.358 s +/- 0.143 s (10 runs).
+- Result: re-run by the orchestrator: `bend bend/uc2/PROOF.bend` prints `ALL PROOFS CHECK` / `Use --verdict for mathematical validity.` (rc 0). 29 laws, 29 defs, no `@unsafe`, holes or foreign imports. `bash bend/probes/run.sh` exits 0 and `just prove-bend` exits 0 (implementer run). Two deliberate code mutations (`ret + 2` and a confirm due test with `is_lt`) give `SOME PROOFS FAIL` (not part of the mutant corpus).
+- Missing arithmetic lemmas (the issue's question). Base has none of the four predicted lemma families:
+  - `a + b == c` gives `c - b == a`: 24 lines, 0 failed iterations, about 3 minutes.
+  - `+` commutative and associative: 29 lines, 0 failed iterations, about 3 minutes.
+  - `a <= a + b`: 18 lines, 0 failed iterations, about 2 minutes.
+  - list sum split at one element: 42 lines, 0 failed iterations, about 5 minutes.
+  The largest family was P3b (released count equals emitted effects): about 450 lines, 3 failed iterations, about 20 minutes. It needed a generalised induction with an accumulated effect list.
+- H1 observation: there is no `p1` law, because `available >= 0` holds by type in `Nat`. The obligation moves to the three `Nat.sub` calls. Reserve has a runtime guard. Confirm and Expire need `reserved >= qty`, proved from A1 and the list-sum split lemma.
+- Size (lines): `spec.bend` 550, `code.bend` 128, `LAWS.bend` 258, `PROOF.bend` 2209.
+- Friction or walls hit: Base has no `Nat` arithmetic or `List.append` lemmas. `List<Effect>` is not Data, so a reusable copy needs `fx_data`. There is no match on computed values, so lemmas are generic in the guard. Rewrite helpers must be oriented "simple == compound". No wall.
+- Details: [docs/results/uc2-bend.md](docs/results/uc2-bend.md)
 
 ## 5. Findings so far
 
