@@ -1,7 +1,7 @@
 # UC1 Bend port and proofs (`bend/uc1`)
 
 Tool: Bend 2 (bend 2.0.40), plain gate only. `--verdict` cannot run here (no Lean, see `docs/results/phase0-bend-guide.md`), so every
-`ALL PROOFS CHECK` below is provisional. All commands ran after `source .nix/env.sh`, from the repo root.
+`ALL PROOFS CHECK` below is provisional. (Later, on the MacBook with Lean 4.34.0, `bend bend/uc1/PROOF.bend --verdict` printed `ALL PROOFS CHECK`, log 4.27.) All commands ran after `source .nix/env.sh`, from the repo root.
 
 ## 1. Timeline
 

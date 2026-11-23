@@ -70,7 +70,7 @@ Two conditions matter here. First, the law must describe the behavior we actuall
 
 A law that is too weak can let bugs pass. In an early test, we wrote laws that only said the counter must never exceed its limit. Those laws accepted two buggy counter implementations. We later added laws that described the exact result of each step.
 
-Bend 2 is new. Its checker has a standard mode and a stronger mode that rechecks results with a small kernel proven in Lean. We could only use the standard mode in this experiment.
+Bend 2 is new. Its checker has a standard mode and a stronger mode that rechecks results with a small kernel proven in Lean. We took every measurement with the standard mode. We ran the stronger mode once afterward, on the final proofs (see "What a pass means" below).
 
 ### A term we use in the results
 
@@ -205,9 +205,9 @@ A Bend pass means the checker accepted a proof of the stated law. If the law des
 
 Both conditions matter. A proof can be valid while proving a weaker claim than we intended.
 
-We used only Bend's standard checker. Bend also offers a stronger recheck that uses a small kernel proven in Lean. We could not run it because Lean was not available in our sandbox. For that reason, treat every Bend pass in this experiment as provisional.
+We took every measurement with Bend's standard checker. Bend also offers a stronger recheck, `--verdict`, that uses a small kernel proven in Lean. It could not run in our sandbox because Lean was missing. Afterward we ran it on a MacBook with Lean 4.34.0, on the same UC1 and UC2 proof files, and both printed `ALL PROOFS CHECK`. A Bend pass here therefore does not rest on the standard checker alone. It still depends on the laws saying what we meant. We did not run the stronger recheck on the mutants.
 
-We also gave Bend 14 statements that we knew were false. It rejected all 14. This test is useful, but it does not prove that the checker is sound.
+We also gave Bend 14 statements that we knew were false. It rejected all 14, with and without `--verdict`. Both runs print the same failure message, so the test does not show whether the kernel rejects anything the standard checker accepts. It is useful, but it does not prove that the checker is sound.
 
 There are two more limits to keep in mind:
 
@@ -275,7 +275,7 @@ There are several questions we could not answer in this experiment:
 
 - **A lease system with a fencing token:** We want to see how both tools handle this design.
 - **Liveness properties:** We want to check whether the tools can verify that something good eventually happens.
-- **Bend's stronger recheck:** We want to run it once we have a working Lean setup.
+- **More on Bend's stronger recheck:** We ran it once on the two final proofs. We want to run it on the mutants and test whether it rejects anything the standard checker accepts.
 - **Human authoring time:** We want to compare how long experienced human authors take to write each model and proof.
 - **Rule changes:** We want to measure the cost of changing a rule in each tool.
 

@@ -163,7 +163,7 @@ bash bend/uc1/mutants/run.sh     # each mutant must be rejected for the expected
 bash bend/uc2/mutants/run.sh
 ```
 
-- `bend <file> --verdict` (the Lean kernel recheck) cannot run here: no Lean, and `~/.bend` is read-only. Every `ALL PROOFS CHECK` is from the plain gate only. Say so in reports.
+- `bend <file> --verdict` (the Lean kernel recheck) needs Lean 4.34.0. The flake pins it by hash, so on the MacBook run `nix develop --command bend bend/uc1/PROOF.bend --verdict`. It cannot run in the sandbox (no Lean, `~/.bend` read-only), so `.nix/env.sh` runs get the plain gate only. State which of the two a report used. UC1 and UC2 both passed `--verdict` on 2026-11-23 (log 4.27).
 - To compile a port for the harness: `bend bend/uc1/main.bend -o $TMPDIR/uc1bin`. The harness does this itself, pipes events on stdin and parses one `key=value` line.
 
 More: `docs/agent/bend.md`, and the guide in `docs/bend-guide.txt`.

@@ -12,7 +12,7 @@ Bend 2 is newer than your training data. Take every syntax form from `docs/bend-
   - A law with no def. An open claim is not proved.
   - Foreign effect defs: `import "./x.c"` or `import "./x.js"`.
 - `bend PROOF.bend` is the gate. Paste its real output into the log.
-- `--verdict` (the recheck by the Lean-proven kernel) cannot run here: Lean is not installed and `~/.bend` is read-only. Every `ALL PROOFS CHECK` is from the plain gate only, so say so in reports. Details: `docs/results/phase0-bend-guide.md`.
+- `--verdict` (the recheck by the Lean-proven kernel) needs Lean 4.34.0. In the sandbox it cannot run: Lean is not installed and `~/.bend` is read-only, so an `ALL PROOFS CHECK` from there is the plain gate only. On the MacBook the flake supplies Lean: `nix develop --command bend bend/<dir>/PROOF.bend --verdict`. The first run builds the kernel into `~/.bend/bendtt`. Say in every report which gate ran. UC1 and UC2 passed `--verdict` on 2026-11-23 (log 4.27). Details: `docs/results/phase0-bend-guide.md`.
 
 ## Lessons from Phase 0
 

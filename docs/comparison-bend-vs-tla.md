@@ -2,6 +2,8 @@
 
 Written 23 November 2026, after checkpoint 4 (UC2 approved). Git HEAD at writing: `8131d4d`.
 
+Update, later on 23 November 2026 (log 4.27): `--verdict` has since run on the final UC1 and UC2 proofs on the MacBook M4 with Lean 4.34.0, and both printed `ALL PROOFS CHECK`. The statements below that `--verdict` was not run, or that every Bend pass is provisional, describe the report as written. They no longer hold for those two proof files. The mutants were not run under `--verdict`, see 4.27.
+
 ## How to read this report
 
 This report compares two tools on two small safety systems: TLA+ with the TLC model checker, and Bend 2 with its proof checker.

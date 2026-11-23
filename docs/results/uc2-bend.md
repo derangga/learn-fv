@@ -1,7 +1,7 @@
 # UC2 Bend port and proofs (`bend/uc2`)
 
 Tool: Bend 2 (bend 2.0.40), plain gate only. `--verdict` was not run (no Lean here, see `docs/results/phase0-bend-guide.md`), so every
-`ALL PROOFS CHECK` below is provisional. All commands ran after `source .nix/env.sh`, from the repo root.
+`ALL PROOFS CHECK` below is provisional. (Later, on the MacBook with Lean 4.34.0, `bend bend/uc2/PROOF.bend --verdict` printed `ALL PROOFS CHECK`, log 4.27.) All commands ran after `source .nix/env.sh`, from the repo root.
 
 Update 2026-11-23: the user approved `LAWS.bend` and `spec.bend` at checkpoint 4 (`experiment-log.md` 4.21 and the summary table). The "draft pending approval" wording below is as written before that.
 

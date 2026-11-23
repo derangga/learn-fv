@@ -71,6 +71,7 @@ Phase 0 rows are not use cases. Times for authoring are the agents' estimates as
 | UC2 | Bend 2.0.40 (plain gate) | `ALL PROOFS CHECK`, 29 of 29 laws (Inv, P2, P3, P4, P4a, P4b, P1b, A1, A2, P3b, pins S0 to S11); `spec.bend` and `LAWS.bend` approved 2026-11-23 (draft 5c5c144) | about 50 minutes | 14 failed proof iterations | first run 2.246 s / 2.358 s +/- 0.143 s | 3145 (`PROOF.bend` 2209) | no `Nat` arithmetic or list-sum lemmas in Base; affine rules on non-Data lists; no match on computed values |
 | UC2 | harness | Go core and Bend port agree on 500 seeded sequences (75,094 events); 9 of 9 contract-event mutants diverge (M1 at seed 19, event 7); M4 cannot be sent | about 20 min | 1 failed iteration (compile) | compile 4.9 s / 500-sequence run 6.0 s incl. compile | 957 | Bend I/O as in UC1 (no mutual recursion, no match on computed values); one stock only |
 | UC1 and UC2 | comparison write-up (no tool run) | `docs/comparison-bend-vs-tla.md` written, see 4.24; no new measurement | not recorded | not recorded | not applicable | 832 | none |
+| UC1 and UC2 | Bend 2.0.40 `--verdict` (Lean 4.34.0 kernel recheck), MacBook | `ALL PROOFS CHECK` for `bend/uc1/PROOF.bend` and `bend/uc2/PROOF.bend`; 14 of 14 probes rejected; see 4.27 | not applicable | not applicable | UC1 0.866 s, UC2 0.323 s (single runs, kernel already built); first UC1 run 14.978 s including the kernel build | not applicable | no Lean in nixpkgs at 4.34.0, so `flake.nix` pins the release by hash; Linux entries untested |
 
 Stop rule per tier (one use case) and tool: 2 hours of authoring or 15 failed iterations, whichever comes first.
 
@@ -562,7 +563,7 @@ $ bash bend/probes/run.sh >/dev/null; echo $?
 
 ## 5. Findings so far
 
-Phase 0 observations only, each from the cited results file. None is a verdict on H1, H2 or H3. Every Bend check below is the plain gate; `--verdict` has not run.
+Phase 0 observations only, each from the cited results file. None is a verdict on H1, H2 or H3. Every Bend check below is the plain gate; `--verdict` had not run when these were written (it ran later on UC1 and UC2, see 4.27).
 
 - TLC pays JVM start-up on every run, even on an 11-distinct-state model. Warm (10 runs, 2 warm-up): mean 1.619 s, min 1.441 s, max 1.952 s. Cold (1 sample): 1.395 s, which is only the first measured run. The file puts the JVM start-up floor at about 1.4 to 1.5 s. (phase0-tlc.md)
 - The plain Bend gate took 385.4 ms +/- 15.7 ms (10 runs, 2 warmups) on add_zero, and about 0.4 s on the small smoke proof (357.7 ms minimum, single runs 0.397 s and 0.396 s). `run.sh` over 14 probes took 5.550 s ± 0.290 s, about 0.40 s per probe (derived). (phase0-bend-guide.md, phase0-bend-smoke.md, phase0-bend-probes.md)
@@ -606,3 +607,28 @@ Also add or update the row in the summary table (section 3). If a Bend claim is 
 - Left as written: `properties/UC1.md` (frozen; it still has a "UC4 support" paragraph and mentions UC4 in its scope), the results files, `docs/comparison-bend-vs-tla.md` and entries 4.23 and 4.24 above, because they record what was true when written. The comparison document says UC3 and UC4 were "not built".
 - Effect: H1 to H3 rest on UC1 and UC2 only, as in 4.23. Nothing was run and nothing was committed.
 - Also at the user's request: `README.md` got a project-structure tree, a current UC2 status (approved at checkpoint 4) and the approved UC2 bounds in place of the `_proposed` text. `CLAUDE.md` now says what to do where `.nix/env.sh` does not exist. `docs/results/uc2-bend.md` got an update note that `LAWS.bend` and `spec.bend` are approved.
+
+### 4.27 Bend `--verdict` on UC1 and UC2 (Lean pinned in the flake)
+
+- Date and time: 2026-11-23, after 4.26. MacBook M4.
+- Tool: Bend 2.0.40 with `--verdict`; Lean 4.34.0 (commit `293d5d0`) and Lake 5.0.0 from `flake.nix`.
+- Use case: UC1 and UC2, plus the 14 soundness probes.
+- What was done: `bend ... --verdict` stopped with "BendTT infrastructure: the kernel did not build (lean: Executable not found in $PATH: "lean")". The locked nixpkgs (nixos-26.05) has Lean 4.29.1, the `leanprover/lean4` flake has only a dev shell and the `bendlang/bend` flake exports only `bend`. So `flake.nix` got a `lean` derivation that fetches the official 4.34.0 release asset by sha256, so no imperative install was needed. Only aarch64-darwin was built and tested; the x86_64-linux and aarch64-linux entries are untested; x86_64-darwin has no release asset and is skipped. No spec, law, proof, mutant, bound or `flake.lock` entry was edited. Nothing was committed.
+- Bounds (TLC only), state count, distinct states, wall time: not applicable.
+- Authoring time, AI iterations, failed iterations: about 1 AI iteration for the flake change; 0 failed builds.
+- Machine time (hyperfine), cold: not measured with hyperfine. First UC1 `--verdict` run 14.978 s wall, which includes building the kernel into `~/.bend/bendtt`.
+- Machine time (hyperfine), warm: not measured with hyperfine. Single runs with the kernel built: UC1 `--verdict` 0.866 s, UC2 `--verdict` 0.323 s, UC2 plain gate 0.162 s. These are MacBook figures and are not comparable with the VPS timings in the summary table.
+- Result:
+
+  ```
+  $ nix develop --command bend bend/uc1/PROOF.bend --verdict
+  ALL PROOFS CHECK
+  $ nix develop --command bend bend/uc2/PROOF.bend --verdict
+  ALL PROOFS CHECK
+  ```
+
+  All 14 `bend/probes/*/PROOF.bend` files printed `SOME PROOFS FAIL` under `--verdict`. `lean --version`: `Lean (version 4.34.0, arm64-apple-darwin24.6.0, commit 293d5d0c0c3f3dded4688b3ccd6a33939ac5102b, Release)`.
+- Size (lines): `flake.nix` changed by 25 insertions and 2 deletions.
+- Friction or walls hit: the first `nix flake show` of the Lean flake failed on a truncated tarball and passed on retry. The kernel build lands in `~/.bend/bendtt`, outside nix, so the Lean toolchain is hash-pinned but the kernel build is not. The probes print the same failure text with and without `--verdict`, so they do not show whether the kernel rejects anything the plain gate accepts. `--verdict` was not run on the mutants.
+- Effect: the "provisional" label on the UC1 and UC2 `ALL PROOFS CHECK` results is lifted for the final proof files. Updated `README.md`, `docs/agent/bend.md` and `docs/article-bend-vs-tla.md`, and added a dated note to `docs/comparison-bend-vs-tla.md`, `docs/results/uc1-bend.md` and `docs/results/uc2-bend.md`, which otherwise stay as written. No measurement in the article changed.
+- Details: `flake.nix`.
