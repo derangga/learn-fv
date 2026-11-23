@@ -318,6 +318,32 @@ $ bash bend/probes/run.sh >/dev/null; echo $?
 - Lost coverage: TLC no longer checks two orders at once (interleaved messages, a shared crash budget, rule D with another order's messages in flight). The Bend laws (no bound) and the Go tests (2 or 3 slots) still cover it.
 - Details: [docs/results/uc1-tla.md](docs/results/uc1-tla.md), section "Checked bound (N = 1)".
 
+### 4.15 UC2 Go pure core
+
+- Date and time: 2026-11-23, about 03:00 to 03:50 UTC.
+- Tool: Go 1.26.10 (reference `Step`, no verification tool).
+- Use case: UC2 stock reservation.
+- What was done: `internal/uc2/core` `Step` (S0-S9, `int64`, ghost `confirmedAt`/`returned`/`up`), `Inv` and one exported predicate per property, and the 24 Go tests named in `properties/UC2.md` sections 3 and 4. The tests run seeded random event lists (drop, duplicate, reorder, crash, unknown SKUs, 1 to 3 SKUs) with 27 non-vacuity counters that must all fire. After review, S0 is counted per event kind, crash-while-down and restart-while-up are counted, and S11 counts accepted first deliveries (Reserve 1510, Confirm 307, Expire 595). The path is `internal/uc2/core` to match UC1; the bead text said `internal/inventory/core`.
+- Authoring time: about 40 minutes (agent estimate, no timer). Failed iterations: 1 (a P1 test asserted all of `Inv`). Review rounds: 1 (3 test and comment fixes).
+- Machine time (hyperfine): not recorded. `go test` takes 6.4 s.
+- Result: `go vet ./internal/uc2/... ./services/inventory/... && go test ./internal/uc2/... ./services/inventory/... -count=1` gives `ok  github.com/derangga/learn-formal-verification/internal/uc2/core 6.351s` (re-run by the orchestrator).
+- Size (lines): `core.go` 435, `core_test.go` 608.
+- Friction or walls hit: UC2.md section 5 says M5a (plain unguarded subtraction) is killed by "P1, P2, P1b, S3". In Go only P1 and S3 kill it. With signed counters `available` and `reserved` move by exactly `qty`, so P2 and P1b still hold. The kill table looks wrong for M5a. The contract is frozen, so this goes to the user at checkpoint 4. M7 also breaks P3b in Go, an extra kill. Temporary mutants M1, M2, M5a, M6 and M7 were each killed, then reverted.
+- Details: [docs/results/uc2-core.md](docs/results/uc2-core.md)
+
+### 4.16 UC2 inventory service
+
+- Date and time: 2026-11-23, about 03:15 to 04:10 UTC.
+- Tool: Go (chi, modernc.org/sqlite, internal/sim).
+- Use case: UC2 stock reservation.
+- What was done: `services/inventory` runs one transaction per event: load the state, call `core.Step`, save the state and outbox rows. It has its own SQLite file and chi handlers bound to 127.0.0.1. `sim.Net` carries requests and replies, and `sim.Clock` drives `Tick`. A crasher crashes the service after commit. The durable `up` flag is part of the state, and `Tick` and `Restart` reach `Step` while the service is down. Seeded fault runs check P1, P2, `Inv` and P3b on the persisted state. A differential test checks that the persisted state and outbox equal the fold of `core.Step` over the logged events.
+- Authoring time: about 35 minutes (agent estimate). Failed iterations: 1 (a test used a crash budget of 0).
+- Machine time (hyperfine): not recorded. `go test` takes 36 s.
+- Result: `ok  github.com/derangga/learn-formal-verification/services/inventory 35.971s` (same command as 4.15). The `Inv` fault test ran 150 seeds of 150 actions: 1304 duplicates, 1327 drops, 2524 lost events, 356 crashes, 1008 ticks while down, 57 releases. The differential test ran 100 seeds, all equal.
+- Size (lines): `service.go` 290, `store.go` 133, `http.go` 72, `service_test.go` 368.
+- Friction or walls hit: the UC1 approach, where a down service refuses every request, does not work here, because `Tick` and `Restart` must reach `Step`. The crash is a clean close and reopen, not a power loss (`synchronous(OFF)`, the same setting as UC1). The service rewrites the whole state on every request. Only 30 confirms happened per 150 runs; directed tests cover the confirm path.
+- Details: [docs/results/uc2-services.md](docs/results/uc2-services.md)
+
 ## 5. Findings so far
 
 Phase 0 observations only, each from the cited results file. None is a verdict on H1, H2 or H3. Every Bend check below is the plain gate; `--verdict` has not run.
