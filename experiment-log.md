@@ -67,7 +67,7 @@ Phase 0 rows are not use cases. Times for authoring are the agents' estimates as
 | UC1 | harness | Go core and Bend port agree on 500 seeded sequences (75,787 events); M1 diverges at event 224 | about 30 min plus review fixes | not recorded | compile 8.2 s / 500-sequence run 10.1 s incl. compile | 739 | Bend I/O: fixed read size, no match on computed values; slow compile |
 | UC2 | TLA+ (TLC 2.18) | **wall** at the contract bounds (`UC2.cfg`): stopped after 60 min at level 8, 25,051,664 distinct, 23.4M on the queue, no violation seen. Proposed bounds (pending approval) pass: `UC2_proposed` 2,055,926 distinct, depth 20; `UC2_proposed_dup` 312,995 distinct, depth 21. M1 and 30 reach witnesses violate as required | about 25 min (about 115 min with runs) | 2 failed | `UC2_proposed` 348.9 s (1 run) / not recorded | `UC2.tla` 428, `UC2_buggy.tla` 430, `UC2.cfg` 33 | state-space explosion from the in-flight message model on 2 cores |
 | UC2 | Bend 2.0.40 (plain gate) | `ALL PROOFS CHECK`, 29 of 29 laws (Inv, P2, P3, P4, P4a, P4b, P1b, A1, A2, P3b, pins S0 to S11); `spec.bend` and `LAWS.bend` are a draft pending user approval (5c5c144) | about 50 minutes | 14 failed proof iterations | first run 2.246 s / 2.358 s +/- 0.143 s | 3145 (`PROOF.bend` 2209) | no `Nat` arithmetic or list-sum lemmas in Base; affine rules on non-Data lists; no match on computed values |
-| UC2 | harness | not started | | | | | |
+| UC2 | harness | Go core and Bend port agree on 500 seeded sequences (75,094 events); 9 of 9 contract-event mutants diverge (M1 at seed 19, event 7); M4 cannot be sent | about 20 min | 1 failed iteration (compile) | compile 4.9 s / 500-sequence run 6.0 s incl. compile | 957 | Bend I/O as in UC1 (no mutual recursion, no match on computed values); one stock only |
 | UC3 | TLA+ | not started | | | | | |
 | UC3 | Bend | not started | | | | | |
 | UC3 | harness | not started | | | | | |
@@ -404,6 +404,72 @@ $ bash bend/probes/run.sh >/dev/null; echo $?
   - Accept the 5 reduced-constant witnesses.
   - Accept the modelling choices in `docs/results/uc2-tla.md`.
 - Details: [docs/results/uc2-tla.md](docs/results/uc2-tla.md)
+
+### 4.19 UC2 conformance harness (Go core vs compiled Bend port)
+
+- Date and time: 2026-11-23, about 06:40 to 07:00 UTC.
+- Tool: Bend 2.0.40 (compiled binary reading stdin) and a Go test.
+- Use case: UC2 stock reservation.
+- What was done:
+  - `bend/uc2/main.bend` reads `total`, then five numbers per event (`kind id sku qty ttl`). It folds `Code.step` starting from `Spec.init(0, total)`. It prints one `key=value` line with the full state, every record field in order, and 11 effect tallies (count and sums). It exits 1 on bad input.
+  - `harness/uc2conformance` holds BuildBend, GenEvents, Encode, GoRun, Serialise, Find and FindFirst.
+  - `mutants/uc2/harness_test.go` runs each mutant that uses only contract events through Find.
+- Authoring time: about 20 minutes (agent estimate). Failed iterations: 1 (a Bend compile error from mutual recursion).
+- Machine time (hyperfine), cold: not recorded.
+- Machine time (hyperfine), warm: compiling `main.bend` takes 4.88 s +/- 0.78 s (3 runs). The 500-sequence test, including one compile, takes 5.99 s +/- 1.24 s. One 300-event Bend run takes 2.0 ms +/- 0.5 ms.
+- Result:
+  - Go and Bend agree on 500 seeded sequences (75,094 events).
+  - Every effect kind and all 8 reject reasons fire. The runs contain 3681 crashes, 3755 restarts and 24,170 events delivered while the service is down.
+  - A local copy of M1 diverges.
+  - All 9 mutants that use only contract events diverge; the seed and event for each are in 4.20. M4 cannot be sent, because it needs events outside the contract.
+  - Re-run by the orchestrator: `go test -count=1 ./mutants/uc2/ ./harness/uc2conformance/` gives `ok ... 17.114s` and `ok ... 6.781s`.
+- Size (lines): `main.bend` 351, `conformance.go` 427, `conformance_test.go` 101, `harness_test.go` 78.
+- Friction or walls hit:
+  - Bend I/O has the same limits as in UC1: no mutual recursion and no match on computed values.
+  - The harness covers one stock only, because the Bend port has one.
+  - Effects are compared as tallies, not as an ordered list.
+- Details: [docs/results/uc2-harness.md](docs/results/uc2-harness.md)
+
+### 4.20 UC2 mutants in Go, harness, Bend and TLA+
+
+- Date and time: 2026-11-23, about 06:40 to 07:25 UTC. This includes a disk-full incident: TLC metadirs filled `/tmp`, and the user freed space.
+- Tools: Go checker tests, the conformance harness, the Bend 2.0.40 plain gate, and TLC 2.18 at the `UC2.cfg` contract constants.
+- Use case: UC2.
+- What was done: the 10 mutants of UC2.md section 5. They live in `mutants/uc2`, in `bend/uc2/mutants/<mid>/` (9 mutants, since M5a has no Bend version because `Nat` truncates) and in `spec/tla/UC2_buggy_m*.tla` (M1 is `UC2_buggy.tla`).
+
+| Mutant | Go checks that fail | Harness (seed, first divergent event) | Bend first failing lemma | TLA+ first violation (trace states) |
+|---|---|---|---|---|
+| M1 | P4a, P4b, S5 | 19, 7 | `inv_conf1` | `ConfirmedBeforeDue` (6) |
+| M1b | S6 | 7, 108 | `inv_exp1` | `PinExpireOk` (6) |
+| M2 | P3, A1, S7, S10, S11 | 2, 120 | `inv_exp2` | **wall**: none in 15 min at contract constants (4.55M distinct); `CountersMatchRecords` (8) at the proposed_dup bound |
+| M3 | P3, P4, P4a, P4b, A1, S5, S10, S11 | 2, 11 | `inv_conf1` | `ConfirmedBeforeDue` (6) |
+| M3b | P4a, P4b, S5 | 2, 11 | `inv_conf2` | `ConfirmedBeforeDue` (6) |
+| M4 | P1, P1b, P3b, A2, commit pin | not sendable | `Laws.inv_step` (stateless port) | `NoOversell` (4) |
+| M5 | P1b, P2, S3 | 1, 79 | `inv_rsv` | `Conservation` (5) |
+| M5a | P1, S3 | 1, 79 | none (no Bend version) | `NonNegativeAvailable` (5) |
+| M6 | P2, A1, S6 | 2, 93 | `inv_exp2` | `Conservation` (6) |
+| M7 | P3b, A2, S3, S11 | 1, 73 | `inv_rsv` | `UniqueIdsKnownSku` (5) |
+
+- Result:
+  - The Go checker kills all 10 mutants.
+  - Bend rejects 9 of 9. Re-run by the orchestrator: `just prove-bend` exits 0, and `bend/uc2/mutants/run.sh` prints PASS for m1 to m7.
+  - TLC kills 9 of 10 at the contract constants. M2 hits a wall there.
+  - The harness catches 9 of 9 contract-event mutants.
+  - There are no survivors in Go or Bend.
+- Mismatches with the frozen UC2.md section 5 "Killed by" column (recorded, contract not edited):
+  - M1b: S7 never fails. The boundary case is Held and Due, so it falls under S6.
+  - M4: P2 does not fail with signed counters, because `available` and `reserved` move by the same amount.
+  - M5a: P2 and P1b do not fail, for the same reason.
+  - Extra kills: M2 also fails S10. M3 also fails S10 and S11. M4 also fails A2 and P3b. M7 also fails P3b.
+- Caveats:
+  - Bend M4 is a stateless approximation. `LAWS.bend` fixes `State` at four fields, so the `approved` list cannot be stored. ReserveCommit carries the whole request and skips the duplicate and stock checks. Its PROOF.bend copy has a 4-line edit to `Laws.inv_step`.
+  - TLA+ M4 consumes one in-flight Reserve copy for each check.
+  - Bend rejection means the proof no longer checks against the mutated code. It is not a counterexample.
+  - The Go checker tests pins S0 to S9 against `core.Step`, not as independent assertions.
+  - `just check-tla-buggy` does not finish while `UC2_buggy_m2.cfg` stays at the contract bound.
+- Authoring time: about 1.5 h wall (Go 20 min, Bend 25 min, TLA+ 25 min plus runs). Failed iterations: Go 0, Bend 1, TLA+ 3 (a generator typo plus the disk-full incident).
+- Size (lines): `mutants.go` 241, `checker_test.go` 412. Each Bend `code.bend` diff is 2 to 10 lines; M4 also changes `spec.bend` (2 lines) and `PROOF.bend` (4 lines). Each TLA+ diff is 6 to 11 lines; M4's is 61.
+- Details: [docs/results/uc2-mutants.md](docs/results/uc2-mutants.md)
 
 ## 5. Findings so far
 
