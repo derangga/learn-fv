@@ -13,7 +13,7 @@ test:
     if [ -z "$(find . -name '*.go' -not -path './.git/*' -print -quit)" ]; then echo "no .go files yet; skipping"; exit 0; fi
     go test ./...
 
-# TLC on every cfg except *_buggy*, *_reach* and *_wall* ones; the module is the cfg's stem.
+# TLC on every cfg except *_buggy*, *_reach*, *_wall* and *_proposed* ones; the module is the cfg's stem.
 check-tla:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -22,7 +22,7 @@ check-tla:
     for cfg in spec/tla/*.cfg; do
       [ -e "$cfg" ] || continue
       name=$(basename "$cfg" .cfg)
-      case $name in *_buggy*|*_reach*|*_wall*) continue;; esac
+      case $name in *_buggy*|*_reach*|*_wall*|*_proposed*) continue;; esac
       [ -f "spec/tla/$name.tla" ] || { echo "error: $cfg has no spec/tla/$name.tla" >&2; exit 1; }
       echo "== tlc $name"
       tlc -noGenerateSpecTE -workers auto -metadir "$tmp/tlc-$name" -config "$cfg" "spec/tla/$name.tla"

@@ -65,7 +65,7 @@ Phase 0 rows are not use cases. Times for authoring are the agents' estimates as
 | UC1 | TLA+ (TLC 2.18) | no error at the checked bound N=1 (approved 2026-11-23): 1,156,996 distinct, depth 34, 5 min 01 s; **wall** at N=2 (contract bounds, `UC1_wall_n2.cfg`): unfinished after 62 min, 9,079,945 distinct, 4.6M on queue, no violation seen; 15 reach witnesses and 6 mutants violate | about 1 h 20 min (mostly TLC) | 0 failed | not timed with hyperfine; N=1 single run 5 min 01 s | `UC1.tla` 438+, `UC1.cfg` 27, `UC1_wall_n2.cfg` 27 | state-space explosion at N=2 on 2 cores / 1.9 GB |
 | UC1 | Bend 2.0.40 (plain gate) | `ALL PROOFS CHECK`, 46 of 46 laws (Inv, P1, P2a, P2b a-d, P3, pins A1-A13 incl. rule D); `spec.bend` and `LAWS.bend` approved 2026-11-23 | about 35 minutes | 12 failed proof iterations | first run 6.97 s / 6.484 s +/- 0.099 s | 3660 (`PROOF.bend` 2634) | affine and erasure rules; no match on computed values |
 | UC1 | harness | Go core and Bend port agree on 500 seeded sequences (75,787 events); M1 diverges at event 224 | about 30 min plus review fixes | not recorded | compile 8.2 s / 500-sequence run 10.1 s incl. compile | 739 | Bend I/O: fixed read size, no match on computed values; slow compile |
-| UC2 | TLA+ | not started | | | | | |
+| UC2 | TLA+ (TLC 2.18) | **wall** at the contract bounds (`UC2.cfg`): stopped after 60 min at level 8, 25,051,664 distinct, 23.4M on the queue, no violation seen. Proposed bounds (pending approval) pass: `UC2_proposed` 2,055,926 distinct, depth 20; `UC2_proposed_dup` 312,995 distinct, depth 21. M1 and 30 reach witnesses violate as required | about 25 min (about 115 min with runs) | 2 failed | `UC2_proposed` 348.9 s (1 run) / not recorded | `UC2.tla` 428, `UC2_buggy.tla` 430, `UC2.cfg` 33 | state-space explosion from the in-flight message model on 2 cores |
 | UC2 | Bend 2.0.40 (plain gate) | `ALL PROOFS CHECK`, 29 of 29 laws (Inv, P2, P3, P4, P4a, P4b, P1b, A1, A2, P3b, pins S0 to S11); `spec.bend` and `LAWS.bend` are a draft pending user approval (5c5c144) | about 50 minutes | 14 failed proof iterations | first run 2.246 s / 2.358 s +/- 0.143 s | 3145 (`PROOF.bend` 2209) | no `Nat` arithmetic or list-sum lemmas in Base; affine rules on non-Data lists; no match on computed values |
 | UC2 | harness | not started | | | | | |
 | UC3 | TLA+ | not started | | | | | |
@@ -369,6 +369,41 @@ $ bash bend/probes/run.sh >/dev/null; echo $?
 - Size (lines): `spec.bend` 550, `code.bend` 128, `LAWS.bend` 258, `PROOF.bend` 2209.
 - Friction or walls hit: Base has no `Nat` arithmetic or `List.append` lemmas. `List<Effect>` is not Data, so a reusable copy needs `fx_data`. There is no match on computed values, so lemmas are generic in the guard. Rewrite helpers must be oriented "simple == compound". No wall.
 - Details: [docs/results/uc2-bend.md](docs/results/uc2-bend.md)
+
+### 4.18 UC2 TLA+ spec (TLC)
+
+- Date and time: 2026-11-23, about 03:30 to 06:35 UTC (this includes the 60 min wall run).
+- Tool: TLA+ (TLC 2.18, OpenJDK 21).
+- Use case: UC2 stock reservation.
+- What was done:
+  - `UC2.tla` has 10 variables and implements S0-S9. Messages sit in an in-flight set that supports drop, duplicate (at most twice) and reorder. Crash and Restart are modelled. Tick drives a logical clock. A history variable, `emitted`, records released effects for P3b. Every TLA+ name in UC2.md is checked: 8 INVARIANTs and 14 PROPERTYs. S11 is derived from the pins and is not checked.
+  - `UC2_buggy.tla` is mutant M1. It differs from `UC2.tla` only in the Confirm guard.
+  - 30 `UC2_reach_*.cfg` witnesses.
+  - The justfile `check-tla` recipe now skips `*_proposed*` (an orchestrator edit).
+- Bounds (TLC only), state count, distinct states, wall time:
+  - Contract bounds (`UC2.cfg`, exactly UC2.md 6.8: ids 1..3, sku {0,1}, qty 1..3, ttl 1..2, total 3, clock <= 4, 2 copies, 1 Crash): **wall**. The run with `-workers auto` was stopped after 60 min at level 8, with nothing else running. TLC had generated 80,574,460 states, found 25,051,664 distinct states, and had 23,427,502 left on the queue. No violation was seen. That is not verified.
+  - **Proposed, pending user approval:**
+    - `UC2_proposed.cfg` (ids {1,2}, qty {1,2}, ttl {1}, total 2, clock <= 2, 1 copy, sku {0}): no error. 16,640,898 generated, 2,055,926 distinct, depth 20, 5 min 32 s.
+    - `UC2_proposed_dup.cfg` (ids {1}, qty {1}, ttl {1,2}, total 1, clock <= 3, 2 copies): no error. 2,037,539 generated, 312,995 distinct, depth 21, 41 s.
+- Authoring time: about 25 minutes on the spec. The rest of about 115 min was TLC runs. AI iterations: about 4 spec edits plus 1 review round (cfg layout, measured wall). Failed model checks: 2 (an un-enumerable `expiresAt : Nat` in TypeOK, then "Deadlock reached", fixed with a stutter disjunct).
+- Machine time (hyperfine), cold: `UC2_proposed.cfg` 348.9 s, 1 run, idle cores.
+- Machine time (hyperfine), warm: not recorded.
+- Result:
+  - The good spec passes only at the proposed bounds. Nothing is checked to completion at the contract bounds.
+  - The M1 buggy variant gives `Error: Invariant ConfirmedBeforeDue is violated.`, a 6-state trace (701,932 distinct). Scratch cfgs also show `ConfirmOnlyBeforeDue` and `PinConfirmRejected` violated. `just check-tla-buggy` reports `7 buggy spec(s) rejected as expected`.
+  - All 30 reach witnesses are violated, as required. 25 use the contract constants. 5 use reduced constants (ConfirmNotHeld, ExpireNotHeld, ExpireDupNotHeld, ConfirmDupNotHeld, ExpireNotHeldAfterConfirm) because they did not hit within 150 s at the contract bounds.
+- Size (lines): `UC2.tla` 428, `UC2.cfg` 33, `UC2_buggy.tla` 430, plus 30 reach cfgs.
+- Friction or walls hit:
+  - The state space explodes at the contract bounds: 42 message values, each with copy and in-flight states, plus `lastEvent` and `lastFx`.
+  - `BadRequest` is unreachable at the 6.8 bounds (qty >= 1, ttl >= 1).
+  - Crash fires only while up and Restart only while down, so the already-down half of S8 and the already-up half of S9 are never exercised in TLC.
+  - The stutter disjunct in `Next` hides deadlocks.
+  - `just` needs `XDG_RUNTIME_DIR`.
+- **Decisions needed from the user (checkpoint 4):**
+  - Approve a checked bound, `UC2_proposed.cfg` and/or `UC2_proposed_dup.cfg`, or allow SYMMETRY or a VIEW. Until then, `just check-tla` does not finish on `UC2.cfg`.
+  - Accept the 5 reduced-constant witnesses.
+  - Accept the modelling choices in `docs/results/uc2-tla.md`.
+- Details: [docs/results/uc2-tla.md](docs/results/uc2-tla.md)
 
 ## 5. Findings so far
 
