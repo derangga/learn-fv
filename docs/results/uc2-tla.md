@@ -2,6 +2,8 @@
 
 Date: 2026-11-23. Authoring start about 03:30 UTC, end about 05:25 UTC (about 115 min, of which most was TLC waiting). Tool: TLC 2.18 (OpenJDK 21), machine as in `phase0-tlc.md` (2 cores, about 1.9 GB RAM).
 
+Update 2026-11-23 (checkpoint 4): the user approved `UC2_proposed.cfg` and `UC2_proposed_dup.cfg` as the checked bounds. They are now `UC2.cfg` and `UC2_dup.cfg`; the contract bound is `UC2_wall_contract.cfg`. Everything below still says "proposed" and `UC2.cfg` for the contract bound, as written before the swap. See `experiment-log.md` 4.21 and 4.22.
+
 Status: **PARTIAL. The spec, the reachability witnesses and mutant M1 behave as required, but TLC does not finish the contract bounds (60 min measured wall) of `properties/UC2.md` section 6 item 8 on this machine.** `spec/tla/UC2.cfg` holds the exact contract bounds, unchanged. **`just check-tla` will not finish on `UC2.cfg` until the user approves a bound.** Smaller bounds are proposed in `spec/tla/UC2_proposed.cfg` and `UC2_proposed_dup.cfg` (both labelled pending user approval; `just check-tla` skips `*_proposed*` (justfile)). When the user approves one, the swap is done as in UC1 (`experiment-log.md` 4.14): the approved constants move into `UC2.cfg` and the contract bounds into a `UC2_wall_*.cfg`. No "verified at the contract bound" claim is made anywhere in this file.
 
 ## What was built

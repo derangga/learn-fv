@@ -45,6 +45,8 @@ Source: `docs/results/phase0-bend-probes.md` (run 2026-11-22T02:09Z). Limits sta
 
 Machine as reported by TLC: Linux 6.18.54 amd64, 2 cores, 274MB heap, 1 worker.
 
+Machine from 2026-11-23 (session after the move from the VPS): MacBook, Apple M4, 10 cores, 16 GiB RAM, Darwin 27.2.0 arm64. Tools come from `nix develop` (go 1.26.10, bend 2.0.40, TLC 2.18, just 1.51.0); `.nix/env.sh` is not needed. Every TLC and Bend timing before this date came from the 2-core VPS above, so timings from this machine are not comparable to them. Step 0 check on this machine: `go test ./...` passes in all 10 packages, and `just prove-bend` exits 0 with `ALL PROOFS CHECK` for smoke, uc1 and uc2 and every probe and mutant `PASS rejected as expected` (5 s wall).
+
 `env.sh` workaround: `nix develop` cannot run in this sandbox, so `.nix/env.sh` is hand-built from the devShell derivation; run `source .nix/env.sh` before any tool. The JVM default temp dir `/tmp` is read-only in the sandbox (TLC failed with `FileSystemException: /tmp/tlc-...: Read-only file system`), so `env.sh` exports `JAVA_TOOL_OPTIONS="-Djava.io.tmpdir=${TMPDIR:-/tmp}"`. This makes the JVM print a `Picked up JAVA_TOOL_OPTIONS: ...` line on stderr. TLC runs also use `-metadir $TMPDIR/...`. Also: `~/.bend` is read-only here and `bend-lang.com:443` is blocked (daily version check); `bend` still runs.
 
 Bounds-reporting rule: never shrink TLC bounds or add assumptions silently. Bounds live in the `.cfg` files and every TLC entry states them, plus states generated, distinct states and wall time. Phase 0 bound: `Smoke.cfg` has `CONSTANT N = 10`.
@@ -65,8 +67,8 @@ Phase 0 rows are not use cases. Times for authoring are the agents' estimates as
 | UC1 | TLA+ (TLC 2.18) | no error at the checked bound N=1 (approved 2026-11-23): 1,156,996 distinct, depth 34, 5 min 01 s; **wall** at N=2 (contract bounds, `UC1_wall_n2.cfg`): unfinished after 62 min, 9,079,945 distinct, 4.6M on queue, no violation seen; 15 reach witnesses and 6 mutants violate | about 1 h 20 min (mostly TLC) | 0 failed | not timed with hyperfine; N=1 single run 5 min 01 s | `UC1.tla` 438+, `UC1.cfg` 27, `UC1_wall_n2.cfg` 27 | state-space explosion at N=2 on 2 cores / 1.9 GB |
 | UC1 | Bend 2.0.40 (plain gate) | `ALL PROOFS CHECK`, 46 of 46 laws (Inv, P1, P2a, P2b a-d, P3, pins A1-A13 incl. rule D); `spec.bend` and `LAWS.bend` approved 2026-11-23 | about 35 minutes | 12 failed proof iterations | first run 6.97 s / 6.484 s +/- 0.099 s | 3660 (`PROOF.bend` 2634) | affine and erasure rules; no match on computed values |
 | UC1 | harness | Go core and Bend port agree on 500 seeded sequences (75,787 events); M1 diverges at event 224 | about 30 min plus review fixes | not recorded | compile 8.2 s / 500-sequence run 10.1 s incl. compile | 739 | Bend I/O: fixed read size, no match on computed values; slow compile |
-| UC2 | TLA+ (TLC 2.18) | **wall** at the contract bounds (`UC2.cfg`): stopped after 60 min at level 8, 25,051,664 distinct, 23.4M on the queue, no violation seen. Proposed bounds (pending approval) pass: `UC2_proposed` 2,055,926 distinct, depth 20; `UC2_proposed_dup` 312,995 distinct, depth 21. M1 and 30 reach witnesses violate as required | about 25 min (about 115 min with runs) | 2 failed | `UC2_proposed` 348.9 s (1 run) / not recorded | `UC2.tla` 428, `UC2_buggy.tla` 430, `UC2.cfg` 33 | state-space explosion from the in-flight message model on 2 cores |
-| UC2 | Bend 2.0.40 (plain gate) | `ALL PROOFS CHECK`, 29 of 29 laws (Inv, P2, P3, P4, P4a, P4b, P1b, A1, A2, P3b, pins S0 to S11); `spec.bend` and `LAWS.bend` are a draft pending user approval (5c5c144) | about 50 minutes | 14 failed proof iterations | first run 2.246 s / 2.358 s +/- 0.143 s | 3145 (`PROOF.bend` 2209) | no `Nat` arithmetic or list-sum lemmas in Base; affine rules on non-Data lists; no match on computed values |
+| UC2 | TLA+ (TLC 2.18) | **wall** at the contract bounds (`UC2_wall_contract.cfg`): stopped after 60 min at level 8, 25,051,664 distinct, 23.4M on the queue, no violation seen; re-run on the 10-core MacBook: 149.6M distinct at level 10, then disk full (86 GB), see 4.21. Checked bounds (approved 2026-11-23) pass: `UC2.cfg` 2,055,926 distinct, depth 20 (28 s on the MacBook); `UC2_dup.cfg` 312,995 distinct, depth 21 (3 s). M1 and 30 reach witnesses violate as required | about 25 min (about 115 min with runs) | 2 failed | `UC2_proposed` 348.9 s (1 run) / not recorded | `UC2.tla` 428, `UC2_buggy.tla` 430, `UC2.cfg` 33 | state-space explosion from the in-flight message model on 2 cores |
+| UC2 | Bend 2.0.40 (plain gate) | `ALL PROOFS CHECK`, 29 of 29 laws (Inv, P2, P3, P4, P4a, P4b, P1b, A1, A2, P3b, pins S0 to S11); `spec.bend` and `LAWS.bend` approved 2026-11-23 (draft 5c5c144) | about 50 minutes | 14 failed proof iterations | first run 2.246 s / 2.358 s +/- 0.143 s | 3145 (`PROOF.bend` 2209) | no `Nat` arithmetic or list-sum lemmas in Base; affine rules on non-Data lists; no match on computed values |
 | UC2 | harness | Go core and Bend port agree on 500 seeded sequences (75,094 events); 9 of 9 contract-event mutants diverge (M1 at seed 19, event 7); M4 cannot be sent | about 20 min | 1 failed iteration (compile) | compile 4.9 s / 500-sequence run 6.0 s incl. compile | 957 | Bend I/O as in UC1 (no mutual recursion, no match on computed values); one stock only |
 | UC3 | TLA+ | not started | | | | | |
 | UC3 | Bend | not started | | | | | |
@@ -382,7 +384,7 @@ $ bash bend/probes/run.sh >/dev/null; echo $?
   - The justfile `check-tla` recipe now skips `*_proposed*` (an orchestrator edit).
 - Bounds (TLC only), state count, distinct states, wall time:
   - Contract bounds (`UC2.cfg`, exactly UC2.md 6.8: ids 1..3, sku {0,1}, qty 1..3, ttl 1..2, total 3, clock <= 4, 2 copies, 1 Crash): **wall**. The run with `-workers auto` was stopped after 60 min at level 8, with nothing else running. TLC had generated 80,574,460 states, found 25,051,664 distinct states, and had 23,427,502 left on the queue. No violation was seen. That is not verified.
-  - **Proposed, pending user approval:**
+  - **Proposed here, approved 2026-11-23 (see 4.22):**
     - `UC2_proposed.cfg` (ids {1,2}, qty {1,2}, ttl {1}, total 2, clock <= 2, 1 copy, sku {0}): no error. 16,640,898 generated, 2,055,926 distinct, depth 20, 5 min 32 s.
     - `UC2_proposed_dup.cfg` (ids {1}, qty {1}, ttl {1,2}, total 1, clock <= 3, 2 copies): no error. 2,037,539 generated, 312,995 distinct, depth 21, 41 s.
 - Authoring time: about 25 minutes on the spec. The rest of about 115 min was TLC runs. AI iterations: about 4 spec edits plus 1 review round (cfg layout, measured wall). Failed model checks: 2 (an un-enumerable `expiresAt : Nat` in TypeOK, then "Deadlock reached", fixed with a stutter disjunct).
@@ -470,6 +472,40 @@ $ bash bend/probes/run.sh >/dev/null; echo $?
 - Authoring time: about 1.5 h wall (Go 20 min, Bend 25 min, TLA+ 25 min plus runs). Failed iterations: Go 0, Bend 1, TLA+ 3 (a generator typo plus the disk-full incident).
 - Size (lines): `mutants.go` 241, `checker_test.go` 412. Each Bend `code.bend` diff is 2 to 10 lines; M4 also changes `spec.bend` (2 lines) and `PROOF.bend` (4 lines). Each TLA+ diff is 6 to 11 lines; M4's is 61.
 - Details: [docs/results/uc2-mutants.md](docs/results/uc2-mutants.md)
+
+### 4.21 UC2 contract bound re-run on the MacBook (disk full)
+
+- Date and time: 2026-11-23, 09:12 to about 09:59 UTC (TLC's own timestamps are local time, UTC+7).
+- Tool: TLA+ (TLC 2.18, OpenJDK 21) on the machine in section 2 (Apple M4, 10 cores, 16 GiB).
+- Use case: UC2.
+- What was done: the same run as the 60 min wall in 4.18, to see whether 10 cores finish the contract bound. Bounds unchanged (`UC2.cfg`). Nothing else ran in parallel.
+- Command: `timeout 3600 tlc -noGenerateSpecTE -workers auto -metadir $TMPDIR/w60m4 -config spec/tla/UC2.cfg spec/tla/UC2.tla`
+- Result: **wall, run aborted at about 48 min by `No space left on device` (StatePoolWriter.run), exit 1, no summary block.** Last progress line, verbatim: `Progress(10) at 2026-11-23 16:59:15: 518,943,976 states generated (12,708,836 s/min), 149,567,238 distinct states found (3,544,649 ds/min), 139,187,624 states left on queue.` No violation was seen. That is not verified.
+- Comparison with 4.18 (2 cores, 60 min): level 8 and 25.05 M distinct there, level 10 and 149.6 M distinct here. The queue was still growing, so the run was not close to finishing.
+- Disk: the metadir grew to 86 GB and filled the volume (71 GB free at the start, 123 MiB at the failure). The run was not capped and free space was not watched, which was a mistake. The metadir was deleted afterwards (87 GB free again). This is the second disk-full incident (see 4.20).
+- Friction or walls hit: the contract bound needs more than 150 M distinct states and more than 86 GB of disk, and no finish is in sight on a machine about 6 times faster. Do not re-run it here without a disk cap.
+- Details: this entry only. Machine timings are not comparable with the VPS timings (section 2).
+
+### 4.22 UC2 checkpoint 4 decisions and TLC bound swap
+
+- Date and time: 2026-11-23, about 10:00 to 10:25 UTC. Machine: MacBook, section 2.
+- Tool: TLA+ (TLC 2.18), `-workers auto`, default heap (run settings, not bounds).
+- Use case: UC2.
+- What was done: the user approved the recommended options of checkpoint 4. (1) Checked bounds: `UC2_proposed.cfg` became `UC2.cfg` and `UC2_proposed_dup.cfg` became `UC2_dup.cfg`. The unchanged contract cfg moved to `UC2_wall_contract.cfg`. `UC2_buggy_m2.cfg` now uses the `UC2_dup.cfg` constants, and the contract version moved to `UC2_wall_m2.cfg`. `just check-tla` skips `*_wall*` and now runs `UC2_dup.cfg` against `UC2.tla`. (2) `bend/uc2/LAWS.bend` and `spec.bend` approved, including the departures in `docs/results/uc2-bend.md` section 6. (3) Contract `properties/UC2.md` section 5 stays frozen; the three contradicted rows (M1b/S7, M4 and M5a/P2 and P1b) stay recorded as a gap in 4.20 (the user's "approve the plan" did not name this option; I chose it as the least invasive, and it can be reversed). (4) The TLA+ modelling choices of 4.18 accepted. (5) The stateless Bend M4 accepted.
+- Bounds: `UC2.cfg`: ids {1,2}, sku {0}, qty {1,2}, ttl {1}, total 2, clock <= 2, MaxCrashes 1, MaxCopies 1. `UC2_dup.cfg`: ids {1}, sku {0}, qty {1}, ttl {1,2}, total 1, clock <= 3, MaxCrashes 1, MaxCopies 2. No CONSTRAINT, SYMMETRY or VIEW.
+- Commands and results (nix develop, free disk watched, 89 GB free afterwards):
+  - `just check-tla`: `check-tla: 4 spec(s) passed`. Smoke 12 distinct; UC1 1,156,996 distinct, 23 s; UC2 2,055,926 distinct, 28 s; UC2_dup 312,995 distinct, 3 s. Each `Model checking completed. No error has been found.`
+  - `just check-tla-buggy`: `check-tla-buggy: 16 buggy spec(s) rejected as expected`, including `UC2_buggy_m2` (`Invariant CountersMatchRecords is violated.`) at the dup bound.
+  - Whole run 7.5 min for both recipes.
+- Lost coverage: at the checked bounds TLC no longer covers 3 ids, 2 SKUs, 3 quantities and ttl 2 together with duplicates. Bend laws (no bound) and the Go tests cover it. M2 is killed only where duplicates are on.
+- Speed: UC1 N=1 took 5 min 01 s on the VPS and 23 s here; UC2 took 5 min 32 s and 28 s. The machines differ (2 vs 10 cores), so this is not a tool comparison.
+- Details: [docs/results/uc2-tla.md](docs/results/uc2-tla.md), [docs/results/uc2-bend.md](docs/results/uc2-bend.md)
+
+### 4.23 Scope decision after checkpoint 4
+
+- Date: 2026-11-23.
+- Decision (user): stop after UC1 and UC2. The user's reason: two use cases are enough to show the difference between Bend and TLA+. UC3 (epic `dao`) and UC4 (epic `fxn`) are not started and stay open in the tracker. They can be resumed from `bd ready`.
+- Effect: the summary table rows for UC3 and UC4 stay at "not started". Any verdict on H1-H3 rests on UC1 and UC2 only. Both are state-machine use cases, so nothing here tests UC3 (fencing token) or UC4 (liveness).
 
 ## 5. Findings so far
 

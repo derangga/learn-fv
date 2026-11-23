@@ -23,9 +23,10 @@ check-tla:
       [ -e "$cfg" ] || continue
       name=$(basename "$cfg" .cfg)
       case $name in *_buggy*|*_reach*|*_wall*|*_proposed*) continue;; esac
-      [ -f "spec/tla/$name.tla" ] || { echo "error: $cfg has no spec/tla/$name.tla" >&2; exit 1; }
+      spec=${name%_dup} # UC2_dup.cfg is a second bound for UC2.tla
+      [ -f "spec/tla/$spec.tla" ] || { echo "error: $cfg has no spec/tla/$spec.tla" >&2; exit 1; }
       echo "== tlc $name"
-      tlc -noGenerateSpecTE -workers auto -metadir "$tmp/tlc-$name" -config "$cfg" "spec/tla/$name.tla"
+      tlc -noGenerateSpecTE -workers auto -metadir "$tmp/tlc-$name" -config "$cfg" "spec/tla/$spec.tla"
       n=$((n+1))
     done
     echo "check-tla: $n spec(s) passed"
